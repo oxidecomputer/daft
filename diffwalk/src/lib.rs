@@ -24,6 +24,15 @@ impl<'a> Diffable<'a> for i32 {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum EnumChange<'a, T: ?Sized, Diff> {
+    // Variant changes mean that we never diff the variant data if there is any
+    Variant { before: &'a T, after: &'a T },
+
+    // Associated data changes mean that we recurse further
+    AssociatedData(Diff),
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum MapChange<'a, K, V: Diffable<'a>> {
     Insert((&'a K, &'a V)),
     Remove((&'a K, &'a V)),
@@ -58,6 +67,26 @@ impl<'a, K: Ord + 'a, V: Diffable<'a> + 'a> Diffable<'a> for BTreeMap<K, V> {
     }
 }
 
+impl<'a, T: Diffable<'a> + 'a> Diffable<'a> for Option<T> {
+    type Diff = Option<EnumChange<'a, Option<T>, T::Diff>>;
+    fn diff(&'a self, other: &'a Self) -> Self::Diff {
+        match (self, other) {
+            (None, None) => None,
+            (Some(a), Some(b)) => {
+                if a == b {
+                    None
+                } else {
+                    Some(EnumChange::AssociatedData(a.diff(b)))
+                }
+            }
+            _ => Some(EnumChange::Variant {
+                before: self,
+                after: other,
+            }),
+        }
+    }
+}
+
 impl<'a, T: Ord + 'a> Diffable<'a> for BTreeSet<T> {
     type Diff = Vec<SetChange<'a, T>>;
     fn diff(&'a self, other: &'a Self) -> Self::Diff {
@@ -75,7 +104,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_sets() {
+    fn test_set() {
         let a: BTreeSet<_> = [0, 1, 2, 3, 4, 5].into_iter().collect();
         let b: BTreeSet<_> = [3, 4, 5, 6, 7, 8].into_iter().collect();
         let changes = a.diff(&b);
@@ -91,7 +120,7 @@ mod tests {
     }
 
     #[test]
-    fn test_maps() {
+    fn test_map() {
         let a: BTreeMap<_, _> = [(0, 1), (1, 1), (2, 1)].into_iter().collect();
         let b: BTreeMap<_, _> = [(0, 2), (2, 1), (3, 1)].into_iter().collect();
 
@@ -109,5 +138,36 @@ mod tests {
         ];
 
         assert_eq!(changes, expected);
+    }
+
+    #[test]
+    fn test_option() {
+        let a = Some(4);
+        let b = None;
+        let diff = a.diff(&b);
+        let expected = Some(EnumChange::Variant {
+            before: &Some(4),
+            after: &None,
+        });
+        assert_eq!(diff, expected);
+
+        let a = Some(4);
+        let b = Some(5);
+        let diff = a.diff(&b);
+        let expected = Some(EnumChange::AssociatedData(Leaf {
+            before: &4,
+            after: &5,
+        }));
+        assert_eq!(diff, expected);
+
+        let a: Option<i32> = None;
+        let b = None;
+        let diff = a.diff(&b);
+        assert!(diff.is_none());
+
+        let a = Some(4);
+        let b = Some(4);
+        let diff = a.diff(&b);
+        assert!(diff.is_none());
     }
 }
