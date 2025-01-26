@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 
 pub trait Diffable<'a>: PartialEq + Eq {
     type Diff: 'a;
@@ -12,95 +13,102 @@ pub struct Leaf<'a, T: PartialEq + Eq> {
     pub after: &'a T,
 }
 
-// TODO: macro for primitives
-impl<'a> Diffable<'a> for i32 {
-    type Diff = Leaf<'a, Self>;
-    fn diff(&'a self, other: &'a Self) -> Self::Diff {
-        Leaf {
-            before: self,
-            after: other,
+macro_rules! leaf{
+    ($($typ:ty),*) => {
+        $(
+            impl<'a> Diffable<'a> for $typ {
+                type Diff = Leaf<'a, Self>;
+
+                fn diff(&'a self, other: &'a Self) -> Self::Diff {
+                    Leaf {
+                        before: self,
+                        after: other
+                    }
+                }
+            }
+        )*
+    }
+}
+
+leaf! { i64, i32, i16, i8, u64, u32, u16, u8, char, bool, isize, usize, (), uuid::Uuid}
+leaf! { IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6 }
+leaf! { oxnet::IpNet, oxnet::Ipv4Net, oxnet::Ipv6Net }
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct MapDiff<'a, K, V: Diffable<'a>> {
+    pub unchanged: Vec<(&'a K, &'a V)>,
+    pub added: Vec<(&'a K, &'a V)>,
+    pub removed: Vec<(&'a K, &'a V)>,
+    pub modified: Vec<(&'a K, V::Diff)>,
+}
+
+impl<'a, K, V: Diffable<'a>> MapDiff<'a, K, V> {
+    pub fn new() -> MapDiff<'a, K, V> {
+        MapDiff {
+            unchanged: vec![],
+            added: vec![],
+            removed: vec![],
+            modified: vec![],
         }
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum EnumChange<'a, T: ?Sized, Diff> {
-    // Variant changes mean that we never diff the variant data if there is any
-    Variant { before: &'a T, after: &'a T },
-
-    // Associated data changes mean that we recurse further
-    AssociatedData(Diff),
+#[derive(Debug, PartialEq, Eq, Default)]
+pub struct SetDiff<'a, T: 'a> {
+    pub unchanged: Vec<&'a T>,
+    pub added: Vec<&'a T>,
+    pub removed: Vec<&'a T>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum MapChange<'a, K, V: Diffable<'a>> {
-    Insert((&'a K, &'a V)),
-    Remove((&'a K, &'a V)),
-    Change((&'a K, V::Diff)),
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum SetChange<'a, T: 'a> {
-    Insert(&'a T),
-    Remove(&'a T),
+impl<'a, T: 'a> SetDiff<'a, T> {
+    pub fn new() -> SetDiff<'a, T> {
+        SetDiff {
+            unchanged: vec![],
+            added: vec![],
+            removed: vec![],
+        }
+    }
 }
 
 impl<'a, K: Ord + 'a, V: Diffable<'a> + 'a> Diffable<'a> for BTreeMap<K, V> {
-    type Diff = Vec<MapChange<'a, K, V>>;
+    type Diff = MapDiff<'a, K, V>;
     fn diff(&'a self, other: &'a Self) -> Self::Diff {
-        let mut changes = vec![];
+        let mut diff = MapDiff::new();
         for (k, v) in self {
             if let Some(other_v) = other.get(k) {
                 if v != other_v {
-                    changes.push(MapChange::Change((k, v.diff(other_v))));
+                    diff.modified.push((k, v.diff(other_v)));
+                } else {
+                    diff.unchanged.push((k, v));
                 }
             } else {
-                changes.push(MapChange::Remove((k, v)));
+                diff.removed.push((k, v));
             }
         }
         for (k, v) in other {
             if !self.contains_key(k) {
-                changes.push(MapChange::Insert((k, v)));
+                diff.added.push((k, v));
             }
         }
-        changes
-    }
-}
-
-impl<'a, T: Diffable<'a> + 'a> Diffable<'a> for Option<T> {
-    type Diff = Option<EnumChange<'a, Option<T>, T::Diff>>;
-    fn diff(&'a self, other: &'a Self) -> Self::Diff {
-        match (self, other) {
-            (None, None) => None,
-            (Some(a), Some(b)) => {
-                if a == b {
-                    None
-                } else {
-                    Some(EnumChange::AssociatedData(a.diff(b)))
-                }
-            }
-            _ => Some(EnumChange::Variant {
-                before: self,
-                after: other,
-            }),
-        }
+        diff
     }
 }
 
 impl<'a, T: Ord + 'a> Diffable<'a> for BTreeSet<T> {
-    type Diff = Vec<SetChange<'a, T>>;
+    type Diff = SetDiff<'a, T>;
     fn diff(&'a self, other: &'a Self) -> Self::Diff {
-        let mut changes: Vec<_> = self
-            .difference(other)
-            .map(|e| SetChange::Remove(e))
-            .collect();
-        changes.extend(other.difference(self).map(SetChange::Insert));
-        changes
+        let mut diff = SetDiff::new();
+        diff.removed = self.difference(other).collect();
+        diff.added = other.difference(self).collect();
+        diff.unchanged = self.intersection(other).collect();
+        diff
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use uuid::Uuid;
+
     use super::*;
 
     #[test]
@@ -108,14 +116,11 @@ mod tests {
         let a: BTreeSet<_> = [0, 1, 2, 3, 4, 5].into_iter().collect();
         let b: BTreeSet<_> = [3, 4, 5, 6, 7, 8].into_iter().collect();
         let changes = a.diff(&b);
-        let expected = vec![
-            SetChange::Remove(&0),
-            SetChange::Remove(&1),
-            SetChange::Remove(&2),
-            SetChange::Insert(&6),
-            SetChange::Insert(&7),
-            SetChange::Insert(&8),
-        ];
+        let expected = SetDiff {
+            added: vec![&6, &7, &8],
+            removed: vec![&0, &1, &2],
+            unchanged: vec![&3, &4, &5],
+        };
         assert_eq!(expected, changes);
     }
 
@@ -125,49 +130,69 @@ mod tests {
         let b: BTreeMap<_, _> = [(0, 2), (2, 1), (3, 1)].into_iter().collect();
 
         let changes = a.diff(&b);
-        let expected = vec![
-            MapChange::Change((
+        let expected = MapDiff {
+            unchanged: vec![(&2, &1)],
+            added: vec![(&3, &1)],
+            removed: vec![(&1, &1)],
+            modified: vec![(
                 &0,
                 Leaf {
                     before: &1,
                     after: &2,
                 },
-            )),
-            MapChange::Remove((&1, &1)),
-            MapChange::Insert((&3, &1)),
-        ];
+            )],
+        };
 
         assert_eq!(changes, expected);
     }
 
     #[test]
-    fn test_option() {
-        let a = Some(4);
-        let b = None;
-        let diff = a.diff(&b);
-        let expected = Some(EnumChange::Variant {
-            before: &Some(4),
-            after: &None,
-        });
-        assert_eq!(diff, expected);
+    fn example_struct() {
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        enum SledState {
+            Active,
+            Decommissioned,
+        }
+        leaf!(SledState);
 
-        let a = Some(4);
-        let b = Some(5);
-        let diff = a.diff(&b);
-        let expected = Some(EnumChange::AssociatedData(Leaf {
-            before: &4,
-            after: &5,
-        }));
-        assert_eq!(diff, expected);
+        #[derive(Debug, Clone)]
+        struct TestStruct {
+            id: Uuid,
+            sled_state: BTreeMap<Uuid, SledState>,
+        }
 
-        let a: Option<i32> = None;
-        let b = None;
-        let diff = a.diff(&b);
-        assert!(diff.is_none());
+        // This is what diffwalk-derive should generate
+        // for `TestStruct`
+        #[derive(Debug)]
+        struct TestStructDiff<'a> {
+            id: Leaf<'a, Uuid>,
+            sled_state: MapDiff<'a, Uuid, SledState>,
+        }
 
-        let a = Some(4);
-        let b = Some(4);
-        let diff = a.diff(&b);
-        assert!(diff.is_none());
+        let sled_states = vec![
+            (Uuid::new_v4(), SledState::Active),
+            (Uuid::new_v4(), SledState::Active),
+            (Uuid::new_v4(), SledState::Decommissioned),
+        ];
+
+        let a = TestStruct {
+            id: Uuid::new_v4(),
+            sled_state: sled_states.clone().into_iter().collect(),
+        };
+        let mut b = a.clone();
+        b.id = Uuid::new_v4();
+        *(b.sled_state.get_mut(&sled_states[0].0).unwrap()) = SledState::Decommissioned;
+        b.sled_state.insert(Uuid::new_v4(), SledState::Active);
+
+        let diff = TestStructDiff {
+            id: a.id.diff(&b.id),
+            sled_state: a.sled_state.diff(&b.sled_state),
+        };
+
+        assert_ne!(diff.id.before, diff.id.after);
+        assert_eq!(diff.sled_state.unchanged.len(), 2);
+        assert_eq!(diff.sled_state.added.len(), 1);
+        assert_eq!(diff.sled_state.removed.len(), 0);
+        assert_eq!(diff.sled_state.modified.len(), 1);
     }
 }
