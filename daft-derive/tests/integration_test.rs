@@ -37,8 +37,6 @@ fn test_basic() {
     let a = SomeStruct { a: 0 };
     let b = SomeStruct { a: 1 };
     let diff = a.diff(&b);
-
-    // This is our generated type for a diff
     let expected = SomeStructDiff { a: Leaf { before: &0, after: &1 } };
     assert_eq!(diff, expected);
 
