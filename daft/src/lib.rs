@@ -19,11 +19,11 @@ pub struct Leaf<'a, T: PartialEq + Eq> {
 macro_rules! leaf{
     ($($typ:ty),*) => {
         $(
-            impl<'a> Diffable<'a> for $typ {
-                type Diff = Leaf<'a, Self>;
+            impl<'a> $crate::Diffable<'a> for $typ {
+                type Diff = $crate::Leaf<'a, Self>;
 
                 fn diff(&'a self, other: &'a Self) -> Self::Diff {
-                    Leaf {
+                    $crate::Leaf {
                         before: self,
                         after: other
                     }
@@ -102,6 +102,17 @@ impl<'a, T: Ord + 'a> Diffable<'a> for BTreeSet<T> {
         diff.added = other.difference(self).collect();
         diff.unchanged = self.intersection(other).collect();
         diff
+    }
+}
+
+/// Treat Vecs as Leafs
+//
+// We plan to add opt in diff functionality: set-like, reordered, etc...
+impl<'a, T: Diffable<'a> + 'a> Diffable<'a> for Vec<T> {
+    type Diff = Leaf<'a, Vec<T>>;
+
+    fn diff(&'a self, other: &'a Self) -> Self::Diff {
+        Leaf { before: self, after: other }
     }
 }
 
