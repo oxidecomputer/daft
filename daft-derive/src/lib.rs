@@ -48,7 +48,8 @@ fn generate_fields(fields: &Fields) -> TokenStream {
     quote! { #(#fields),* }
 }
 
-/// Generate a `Diff` implementation for the generated struct
+/// Generate a call to `diff` for each field of the original struct that isn't
+/// ignored.
 fn generate_field_diffs(fields: &Fields) -> TokenStream {
     let field_diffs = fields
         .iter()
@@ -69,7 +70,7 @@ fn generate_field_diffs(fields: &Fields) -> TokenStream {
     quote! { #(#field_diffs),* }
 }
 
-/// Create the diff struct and `impl Diffable` for the original struct
+/// Create the `Diff` struct and `impl Diffable` for the original struct
 //
 // TODO: Handle generics:
 // see https://docs.rs/syn/latest/syn/struct.Generics.html#method.split_for_impl
@@ -89,7 +90,6 @@ fn make_diff_struct(input: &DeriveInput, s: &DataStruct) -> TokenStream {
             #fields
         }
 
-        // TODO: handle generics for original type
         impl<'a> daft::Diffable<'a> for #ident {
             type Diff = #name<'a>;
 
