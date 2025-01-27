@@ -1,3 +1,5 @@
+pub use daft_derive::*;
+use newtype_uuid::{TypedUuid, TypedUuidKind};
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::{
     IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6,
@@ -37,6 +39,17 @@ leaf! { i64, i32, i16, i8, u64, u32, u16, u8, char, bool, isize, usize, (), uuid
 leaf! { IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6 }
 leaf! { oxnet::IpNet, oxnet::Ipv4Net, oxnet::Ipv6Net }
 leaf! { String }
+
+impl<'a, T> Diffable<'a> for TypedUuid<T>
+where
+    T: TypedUuidKind + Diffable<'a>,
+{
+    type Diff = Leaf<'a, TypedUuid<T>>;
+
+    fn diff(&'a self, other: &'a Self) -> Self::Diff {
+        Leaf { before: self, after: other }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct MapDiff<'a, K, V: Diffable<'a>> {
@@ -202,5 +215,3 @@ mod tests {
         assert_eq!(diff.sled_state.modified.len(), 1);
     }
 }
-
-pub use daft_derive::*;
