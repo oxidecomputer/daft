@@ -1,5 +1,5 @@
 [package]
-name = "diffwalk-derive"
+name = "daft-derive"
 version = "0.1.0"
 edition = "2021"
 
@@ -12,5 +12,5 @@ quote = "1.0"
 proc-macro2 = "1.0"
 
 [dev-dependencies]
-diffwalk = { path = "../diffwalk" }
+daft = { path = "../daft" }
 uuid = { version = "1.12.0", features = ["v4"] }

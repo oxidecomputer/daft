@@ -5,7 +5,7 @@ use syn::{
     Path,
 };
 
-#[proc_macro_derive(Diff, attributes(diffwalk))]
+#[proc_macro_derive(Diff, attributes(daft))]
 pub fn derive_diff(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as syn::DeriveInput);
 
@@ -14,7 +14,7 @@ pub fn derive_diff(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     match &input.data {
         Data::Enum(_) => quote! {
             // Implement all Enums as `Leaf`s
-            diffwalk::leaf!(#name);
+            daft::leaf!(#name);
 
         }
         .into(),
@@ -25,7 +25,7 @@ pub fn derive_diff(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         Data::Union(_) => quote! {
             // Implement all Unions as `Leaf`s
-            diffwalk::leaf!(#name);
+            daft::leaf!(#name);
         }
         .into(),
     }
@@ -38,10 +38,10 @@ fn generate_fields(fields: &Fields) -> TokenStream {
         let ty = &f.ty;
         match &f.ident {
             Some(ident) => quote! {
-                #vis #ident: <#ty as diffwalk::Diffable<'a>>::Diff
+                #vis #ident: <#ty as daft::Diffable<'a>>::Diff
             },
             None => quote! {
-                #vis <#ty as diffwalk::Diffable<'a>>::Diff
+                #vis <#ty as daft::Diffable<'a>>::Diff
             },
         }
     });
@@ -63,7 +63,7 @@ fn generate_field_diffs(fields: &Fields) -> TokenStream {
                 }
             };
             quote! {
-                #field_name: diffwalk::Diffable::diff(&self.#field_name, &other.#field_name)
+                #field_name: daft::Diffable::diff(&self.#field_name, &other.#field_name)
             }
         });
     quote! { #(#field_diffs),* }
@@ -90,7 +90,7 @@ fn make_diff_struct(input: &DeriveInput, s: &DataStruct) -> TokenStream {
         }
 
         // TODO: handle generics for original type
-        impl<'a> diffwalk::Diffable<'a> for #ident {
+        impl<'a> daft::Diffable<'a> for #ident {
             type Diff = #name<'a>;
 
             fn diff(&'a self, other: &'a Self) -> Self::Diff {
@@ -104,10 +104,10 @@ fn make_diff_struct(input: &DeriveInput, s: &DataStruct) -> TokenStream {
     }
 }
 
-// Is the field tagged with `#[diffwalk(ignore)]` ?
+// Is the field tagged with `#[daft(ignore)]` ?
 fn has_ignore_attr(field: &syn::Field) -> bool {
     field.attrs.iter().any(|attr| {
-        if attr.path().is_ident("diffwalk") {
+        if attr.path().is_ident("daft") {
             // Ignore failures
             if let Ok(meta) = attr.parse_args::<syn::Meta>() {
                 if meta.path().is_ident("ignore") {

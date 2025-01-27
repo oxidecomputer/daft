@@ -1,5 +1,5 @@
-use diffwalk::{Diffable, Leaf};
-use diffwalk_derive::Diff;
+use daft::{Diffable, Leaf};
+use daft_derive::Diff;
 use std::collections::{BTreeMap, BTreeSet};
 use uuid::Uuid;
 
