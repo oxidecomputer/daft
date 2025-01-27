@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::net::{
+    IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6,
+};
 
 pub trait Diffable<'a>: PartialEq + Eq {
     type Diff: 'a;
@@ -13,6 +15,7 @@ pub struct Leaf<'a, T: PartialEq + Eq> {
     pub after: &'a T,
 }
 
+#[macro_export]
 macro_rules! leaf{
     ($($typ:ty),*) => {
         $(
@@ -62,11 +65,7 @@ pub struct SetDiff<'a, T: 'a> {
 
 impl<'a, T: 'a> SetDiff<'a, T> {
     pub fn new() -> SetDiff<'a, T> {
-        SetDiff {
-            unchanged: vec![],
-            added: vec![],
-            removed: vec![],
-        }
+        SetDiff { unchanged: vec![], added: vec![], removed: vec![] }
     }
 }
 
@@ -134,13 +133,7 @@ mod tests {
             unchanged: vec![(&2, &1)],
             added: vec![(&3, &1)],
             removed: vec![(&1, &1)],
-            modified: vec![(
-                &0,
-                Leaf {
-                    before: &1,
-                    after: &2,
-                },
-            )],
+            modified: vec![(&0, Leaf { before: &1, after: &2 })],
         };
 
         assert_eq!(changes, expected);
@@ -181,7 +174,8 @@ mod tests {
         };
         let mut b = a.clone();
         b.id = Uuid::new_v4();
-        *(b.sled_state.get_mut(&sled_states[0].0).unwrap()) = SledState::Decommissioned;
+        *(b.sled_state.get_mut(&sled_states[0].0).unwrap()) =
+            SledState::Decommissioned;
         b.sled_state.insert(Uuid::new_v4(), SledState::Active);
 
         let diff = TestStructDiff {
