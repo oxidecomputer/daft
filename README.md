@@ -34,8 +34,8 @@ and shouldn't report equivalence for ignored fields.
 the `before` and `after` values for primitives, enums, and other types like
 `String` and `Uuid` that don't make sense to diff. We are building type based
 diffs, not text based diffs here.
-* For sets and maps we provide specific types that report changes as we would
-like to see them. For example, for maps we return which values were inserted,
-removed, modified, and unchanged explicitly. In practice this is what we want to
-know, and so we don't force the user to figure this out.
-
+* For sets and maps we provide specific types that report changes as we
+would like to see them. For example, for maps we return separate collections
+containing which values were inserted, removed, modified, and unchangedy. In
+practice this is what we want to know, and so we don't force the user to compile
+this data by walking and matching the values.

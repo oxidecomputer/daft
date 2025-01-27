@@ -19,8 +19,13 @@ pub fn derive_diff(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
         .into(),
         Data::Struct(s) => {
-            let out = make_diff_struct(&input, &s).into();
-            out
+            let generated_struct = make_diff_struct(&input, &s);
+            let diff_impl = make_diff_impl(&input, &s);
+            quote! {
+                #generated_struct
+                #diff_impl
+            }
+            .into()
         }
 
         Data::Union(_) => quote! {
@@ -28,6 +33,58 @@ pub fn derive_diff(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             daft::leaf!(#name);
         }
         .into(),
+    }
+}
+
+/// Create the `Diff` struct
+//
+// TODO: Handle generics:
+// see https://docs.rs/syn/latest/syn/struct.Generics.html#method.split_for_impl
+fn make_diff_struct(input: &DeriveInput, s: &DataStruct) -> TokenStream {
+    // The name of the original type
+    let vis = &input.vis;
+
+    // The name of the generated type
+    let name = parse_str::<Path>(&format!("{}Diff", input.ident)).unwrap();
+    let fields = generate_fields(&s.fields);
+
+    match &s.fields {
+        Fields::Named(_) => quote! {
+            #[derive(Debug, PartialEq, Eq)]
+            #vis struct #name<'a> {
+                #fields
+            }
+        },
+        Fields::Unnamed(_) => quote! {
+            #[derive(Debug, PartialEq, Eq)]
+            #vis struct #name<'a>(#fields);
+        },
+        Fields::Unit => quote! {
+            // This is kinda silly
+            #vis struct #name {}
+        },
+    }
+}
+
+/// Impl `Diffable` for the original struct
+fn make_diff_impl(input: &DeriveInput, s: &DataStruct) -> TokenStream {
+    // The name of the original type
+    let ident = &input.ident;
+
+    // The name of the generated type
+    let name = parse_str::<Path>(&format!("{}Diff", input.ident)).unwrap();
+    let diffs = generate_field_diffs(&s.fields);
+
+    quote! {
+        impl<'a> daft::Diffable<'a> for #ident {
+            type Diff = #name<'a>;
+
+            fn diff(&'a self, other: &'a Self) -> Self::Diff {
+                Self::Diff {
+                    #diffs
+                }
+            }
+        }
     }
 }
 
@@ -68,40 +125,6 @@ fn generate_field_diffs(fields: &Fields) -> TokenStream {
             }
         });
     quote! { #(#field_diffs),* }
-}
-
-/// Create the `Diff` struct and `impl Diffable` for the original struct
-//
-// TODO: Handle generics:
-// see https://docs.rs/syn/latest/syn/struct.Generics.html#method.split_for_impl
-fn make_diff_struct(input: &DeriveInput, s: &DataStruct) -> TokenStream {
-    // The name of the original type
-    let ident = &input.ident;
-    let vis = &input.vis;
-
-    // The name of the generated type
-    let name = parse_str::<Path>(&format!("{}Diff", input.ident)).unwrap();
-    let fields = generate_fields(&s.fields);
-    let diffs = generate_field_diffs(&s.fields);
-
-    quote! {
-        #[derive(Debug, PartialEq, Eq)]
-        #vis struct #name<'a> {
-            #fields
-        }
-
-        impl<'a> daft::Diffable<'a> for #ident {
-            type Diff = #name<'a>;
-
-            fn diff(&'a self, other: &'a Self) -> Self::Diff {
-                Self::Diff {
-                    #diffs
-                }
-            }
-        }
-
-
-    }
 }
 
 // Is the field tagged with `#[daft(ignore)]` ?
