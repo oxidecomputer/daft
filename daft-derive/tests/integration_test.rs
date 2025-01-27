@@ -23,6 +23,9 @@ struct Large {
     d: SomeStruct,
 }
 
+#[derive(Debug, Eq, PartialEq, Diff)]
+struct TupleStruct(String);
+
 #[test]
 fn test_basic() {
     let a = SomeEnum::A;
@@ -52,5 +55,28 @@ fn test_basic() {
     let a = Large { a: 0, b: SomeEnum::C(4), c: c1, d: SomeStruct { a: 0 } };
     let b = Large { a: 0, b: SomeEnum::B, c: c2, d: SomeStruct { a: 1 } };
     let diff = a.diff(&b);
+    println!("{:#?}", diff);
+
+    assert_eq!(diff.a.before, diff.a.after);
+    assert_eq!(diff.b.before, &SomeEnum::C(4));
+    assert_eq!(diff.b.after, &SomeEnum::B);
+    assert_eq!(diff.c.unchanged.len(), 0);
+    assert_eq!(diff.c.added.len(), 1);
+    assert_eq!(diff.c.removed.len(), 0);
+    assert_eq!(diff.c.modified.len(), 1);
+
+    let set_diff = &diff.c.modified.iter().next().unwrap().1;
+    assert_eq!(set_diff.unchanged, vec![&1, &2, &4, &5]);
+    assert_eq!(set_diff.added, vec![&6]);
+    assert_eq!(set_diff.removed, vec![&3]);
+
+    assert_eq!(diff.d.a.before, &0);
+    assert_eq!(diff.d.a.after, &1);
+
+    let a = TupleStruct("oxide".into());
+    let b = TupleStruct("computer company".into());
+    let diff = a.diff(&b);
+    assert_eq!(diff.0.before, &"oxide".to_string());
+    assert_eq!(diff.0.after, &"computer company".to_string());
     println!("{:#?}", diff);
 }

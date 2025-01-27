@@ -36,6 +36,7 @@ macro_rules! leaf{
 leaf! { i64, i32, i16, i8, u64, u32, u16, u8, char, bool, isize, usize, (), uuid::Uuid}
 leaf! { IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6 }
 leaf! { oxnet::IpNet, oxnet::Ipv4Net, oxnet::Ipv6Net }
+leaf! { String }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct MapDiff<'a, K, V: Diffable<'a>> {
@@ -190,3 +191,5 @@ mod tests {
         assert_eq!(diff.sled_state.modified.len(), 1);
     }
 }
+
+pub use daft_derive::*;
