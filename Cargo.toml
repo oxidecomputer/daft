@@ -1,7 +1,7 @@
 [workspace]
 members = [
-    "diffwalk",
-    "diffwalk-derive"
+    "daft",
+    "daft-derive"
 ]
 
-default-members = [ "diffwalk", "diffwalk-derive"]
+default-members = [ "daft", "daft-derive"]

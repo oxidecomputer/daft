@@ -154,7 +154,7 @@ mod tests {
             sled_state: BTreeMap<Uuid, SledState>,
         }
 
-        // This is what diffwalk-derive should generate
+        // This is what daft-derive should generate
         // for `TestStruct`
         #[derive(Debug)]
         struct TestStructDiff<'a> {
