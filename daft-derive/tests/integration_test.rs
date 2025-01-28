@@ -1,6 +1,7 @@
 use daft::{Diffable, Leaf};
 use daft_derive::Diff;
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Debug;
 use uuid::Uuid;
 
 #[derive(Debug, Eq, PartialEq, Diff)]
@@ -79,4 +80,67 @@ fn test_basic() {
     assert_eq!(diff.0.before, &"oxide".to_string());
     assert_eq!(diff.0.after, &"computer company".to_string());
     println!("{:#?}", diff);
+}
+
+#[test]
+fn test_enum_with_generics() {
+    #[derive(Debug, Eq, PartialEq, Diff)]
+    enum EnumWithGenerics<'a, T: Eq + Debug, U: Eq + Debug> {
+        A(T),
+        B(&'a U),
+    }
+
+    let x = 5usize;
+    let y = 5u8;
+    let a = EnumWithGenerics::A(x);
+    let b = EnumWithGenerics::B(&y);
+    let diff = a.diff(&b);
+    assert_eq!(Leaf { before: &a, after: &b }, diff);
+}
+
+#[test]
+fn test_struct_with_generics() {
+    #[derive(Debug, Eq, PartialEq, Diff)]
+    struct StructWithGenerics<'d, 'e, T: Eq + Debug, U: Eq + Debug>
+    where
+        T: Diffable<'d>,
+        U: Diffable<'e>,
+    {
+        b: usize,
+        c: &'d T,
+        d: &'e U,
+    }
+
+    let x = StructWithGenerics { b: 6, c: &5, d: &6 };
+    let y = StructWithGenerics { b: 7, c: &5, d: &7 };
+    let diff = x.diff(&y);
+
+    assert_eq!(diff.b, Leaf { before: &6, after: &7 });
+    assert_eq!(diff.c, Leaf { before: &5, after: &5 });
+    assert_eq!(diff.d, Leaf { before: &6, after: &7 });
+    println!("{diff:?}");
+
+    #[derive(Debug, Eq, PartialEq, Diff)]
+    struct S<'a, T, U>
+    where
+        for<'x> T: Diffable<'x> + Debug + Eq + 'x,
+        U: Diffable<'a> + Debug + Eq,
+    {
+        a: BTreeMap<usize, T>,
+        b: usize,
+        c: &'a U,
+    }
+
+    let x = S { a: [(5, 2usize)].into_iter().collect(), b: 5, c: &6usize };
+    let y = S { a: [(5, 1usize)].into_iter().collect(), b: 5, c: &6usize };
+    let diff = x.diff(&y);
+
+    assert_eq!(diff.a.unchanged.len(), 0);
+    assert_eq!(diff.a.modified.len(), 1);
+    assert_eq!(diff.a.added.len(), 0);
+    assert_eq!(diff.a.removed.len(), 0);
+    assert_eq!(diff.b.before, diff.b.after);
+    assert_eq!(diff.c.before, diff.c.after);
+
+    println!("{diff:#?}");
 }
