@@ -22,8 +22,6 @@ pub fn derive_diff(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         Data::Struct(s) => {
             let generated_struct = make_diff_struct(&input, &s);
             let diff_impl = make_diff_impl(&input, &s);
-            eprintln!("{generated_struct}\n");
-            eprintln!("{diff_impl}");
             quote! {
                 #generated_struct
                 #diff_impl
@@ -136,7 +134,9 @@ fn make_diff_impl(input: &DeriveInput, s: &DataStruct) -> TokenStream {
     let (impl_gen, new_ty_gen, where_clause) = &new_generics.split_for_impl();
 
     quote! {
-        impl #impl_gen daft::Diffable<#daft_lt> for #ident #ty_gen #where_clause {
+        impl #impl_gen daft::Diffable<#daft_lt> for #ident #ty_gen
+            #where_clause
+        {
             type Diff = #name #new_ty_gen;
 
             fn diff(&#daft_lt self, other: &#daft_lt Self) -> Self::Diff {
@@ -163,6 +163,7 @@ fn generate_fields(fields: &Fields) -> TokenStream {
         } else {
             daft_lifetime()
         };
+
         match &f.ident {
             Some(ident) => quote! {
                 #vis #ident: <#ty as daft::Diffable<#lt>>::Diff
@@ -178,33 +179,38 @@ fn generate_fields(fields: &Fields) -> TokenStream {
 /// Generate a call to `diff` for each field of the original struct that isn't
 /// ignored.
 fn generate_field_diffs(fields: &Fields) -> TokenStream {
-    let field_diffs = fields
-        .iter()
-        .enumerate()
-        .filter(|(_, f)| !has_ignore_attr(f))
-        .map(|(i, f)| {
-            // We want to diff our types, not references to them
-            let deref = match &f.ty {
-                Type::Reference(_) => true,
-                _ => false
-            };
-            let field_name = match &f.ident {
-                Some(ident) => quote! { #ident },
-                None => {
-                    let ident: Index = i.into();
-                    quote! { #ident }
+    let field_diffs =
+        fields.iter().enumerate().filter(|(_, f)| !has_ignore_attr(f)).map(
+            |(i, f)| {
+                // We want to diff our types, not references to them
+                let deref = match &f.ty {
+                    Type::Reference(_) => true,
+                    _ => false,
+                };
+                let field_name = match &f.ident {
+                    Some(ident) => quote! { #ident },
+                    None => {
+                        let ident: Index = i.into();
+                        quote! { #ident }
+                    }
+                };
+                if deref {
+                    quote! {
+                        #field_name: daft::Diffable::diff(
+                            &*self.#field_name,
+                            &*other.#field_name
+                        )
+                    }
+                } else {
+                    quote! {
+                        #field_name: daft::Diffable::diff(
+                            &self.#field_name,
+                            &other.#field_name
+                        )
+                    }
                 }
-            };
-            if deref {
-                quote! {
-                    #field_name: daft::Diffable::diff(&*self.#field_name, &*other.#field_name)
-                }
-            } else {
-                quote! {
-                    #field_name: daft::Diffable::diff(&self.#field_name, &other.#field_name)
-                }
-            }
-        });
+            },
+        );
     quote! { #(#field_diffs),* }
 }
 

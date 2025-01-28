@@ -115,6 +115,9 @@ fn test_struct_with_generics() {
     let y = StructWithGenerics { b: 7, c: &5, d: &7 };
     let diff = x.diff(&y);
 
+    assert_eq!(diff.b, Leaf { before: &6, after: &7 });
+    assert_eq!(diff.c, Leaf { before: &5, after: &5 });
+    assert_eq!(diff.d, Leaf { before: &6, after: &7 });
     println!("{diff:?}");
 
     #[derive(Debug, Eq, PartialEq, Diff)]
@@ -131,5 +134,13 @@ fn test_struct_with_generics() {
     let x = S { a: [(5, 2usize)].into_iter().collect(), b: 5, c: &6usize };
     let y = S { a: [(5, 1usize)].into_iter().collect(), b: 5, c: &6usize };
     let diff = x.diff(&y);
+
+    assert_eq!(diff.a.unchanged.len(), 0);
+    assert_eq!(diff.a.modified.len(), 1);
+    assert_eq!(diff.a.added.len(), 0);
+    assert_eq!(diff.a.removed.len(), 0);
+    assert_eq!(diff.b.before, diff.b.after);
+    assert_eq!(diff.c.before, diff.c.after);
+
     println!("{diff:#?}");
 }
