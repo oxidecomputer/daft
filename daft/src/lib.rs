@@ -13,7 +13,7 @@ pub trait Diffable<'a>: PartialEq + Eq {
 
 /// A primitive change
 #[derive(Debug, PartialEq, Eq)]
-pub struct Leaf<'a, T: Eq> {
+pub struct Leaf<'a, T: Eq + Debug> {
     pub before: &'a T,
     pub after: &'a T,
 }
@@ -40,6 +40,20 @@ leaf! { i64, i32, i16, i8, u64, u32, u16, u8, char, bool, isize, usize, (), uuid
 leaf! { IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6 }
 leaf! { oxnet::IpNet, oxnet::Ipv4Net, oxnet::Ipv6Net }
 leaf! { String }
+
+impl<'a, T: Eq + Debug + 'a> Diffable<'a> for Option<T> {
+    type Diff = Leaf<'a, Option<T>>;
+    fn diff(&'a self, other: &'a Self) -> Self::Diff {
+        Leaf { before: self, after: other }
+    }
+}
+
+impl<'a, T: Eq + Debug + 'a, U: Eq + Debug + 'a> Diffable<'a> for Result<T, U> {
+    type Diff = Leaf<'a, Result<T, U>>;
+    fn diff(&'a self, other: &'a Self) -> Self::Diff {
+        Leaf { before: self, after: other }
+    }
+}
 
 impl<'a, T> Diffable<'a> for TypedUuid<T>
 where

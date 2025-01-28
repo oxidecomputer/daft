@@ -22,6 +22,9 @@ pub fn derive_diff(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         Data::Struct(s) => {
             let generated_struct = make_diff_struct(&input, &s);
             let diff_impl = make_diff_impl(&input, &s);
+            // Uncomment for some debugging
+            // eprintln!("{generated_struct}");
+            // eprintln!("{diff_impl}");
             quote! {
                 #generated_struct
                 #diff_impl
@@ -62,7 +65,7 @@ fn add_lifetime_to_generics(
 //
 // Return a `Leaf` as a Diff
 fn make_leaf_for_enum(input: &DeriveInput) -> TokenStream {
-    let name = &input.ident;
+    let ident = &input.ident;
     let daft_lt = daft_lifetime();
     let new_generics = add_lifetime_to_generics(input, &daft_lt);
 
@@ -73,12 +76,12 @@ fn make_leaf_for_enum(input: &DeriveInput) -> TokenStream {
     let (impl_gen, _, where_clause) = &new_generics.split_for_impl();
 
     quote! {
-        impl #impl_gen daft::Diffable<#daft_lt> for #name #ty_gen #where_clause
+        impl #impl_gen daft::Diffable<#daft_lt> for #ident #ty_gen #where_clause
         {
             type Diff = daft::Leaf<#daft_lt, Self>;
 
             fn diff(&#daft_lt self, other: &#daft_lt Self) -> Self::Diff {
-                Leaf {before: self, after: other}
+                daft::Leaf {before: self, after: other}
             }
         }
     }
