@@ -1,8 +1,10 @@
 Daft is a library and proc macro for generating differences between types.
-
-`daft` is inspired by [diffus](https://github.com/distil/diffus) but
-simplified significantly. The primary usage is to `#[derive(Diff)]`
-on types so that they are semantically diffable. See the
+`daft` is inspired by [diffus](https://github.com/distil/diffus) but simplified
+significantly. I (ajs) learned so much from using and reading the `diffus`
+code and I think it is awesome that stuff like that is made available to the
+community. `daft` as an alternative is purposefully adapted to Oxide's use case.
+The primary usage is to `#[derive(Diff)]` on types so that they are semantically
+diffable. See the
 [integration_test](https://github.com/oxidecomputer/daft/blob/main/daft-derive/tests/integration_test.rs)
 for an example of how to use `daft`.
 
