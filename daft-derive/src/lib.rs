@@ -1,26 +1,29 @@
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{
-    parse_macro_input, parse_str, Data, DataStruct, DeriveInput, Fields, Index,
-    Path,
+    parse_macro_input, parse_str, Data, DataStruct, DeriveInput, Fields,
+    GenericParam, Generics, Index, Lifetime, LifetimeParam, Path, Type,
 };
 
 #[proc_macro_derive(Diff, attributes(daft))]
 pub fn derive_diff(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as syn::DeriveInput);
-
     let name = &input.ident;
 
     match &input.data {
-        Data::Enum(_) => quote! {
+        Data::Enum(_) => {
             // Implement all Enums as `Leaf`s
-            daft::leaf!(#name);
-
+            let out = make_leaf_for_enum(&input);
+            quote! {
+                #out
+            }
+            .into()
         }
-        .into(),
         Data::Struct(s) => {
             let generated_struct = make_diff_struct(&input, &s);
             let diff_impl = make_diff_impl(&input, &s);
+            eprintln!("{generated_struct}\n");
+            eprintln!("{diff_impl}");
             quote! {
                 #generated_struct
                 #diff_impl
@@ -36,10 +39,54 @@ pub fn derive_diff(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 }
 
-/// Create the `Diff` struct
+fn daft_lifetime() -> LifetimeParam {
+    LifetimeParam::new(Lifetime::new("'daft", Span::call_site()))
+}
+
+// We need to add our lifetime parameter 'daft and ensure any other parameters
+// live as long as `daft`
+fn add_lifetime_to_generics(
+    input: &DeriveInput,
+    daft_lt: &LifetimeParam,
+) -> Generics {
+    let mut new_generics = input.generics.clone();
+    new_generics
+        .lifetimes_mut()
+        .for_each(|lt| lt.bounds.push(daft_lt.lifetime.clone()));
+    new_generics.type_params_mut().for_each(|lt| {
+        lt.bounds.push(syn::TypeParamBound::Lifetime(daft_lt.lifetime.clone()))
+    });
+    new_generics.params.push(GenericParam::from(daft_lt.clone()));
+    new_generics
+}
+
+// Implement `Diffable` for an enum
 //
-// TODO: Handle generics:
-// see https://docs.rs/syn/latest/syn/struct.Generics.html#method.split_for_impl
+// Return a `Leaf` as a Diff
+fn make_leaf_for_enum(input: &DeriveInput) -> TokenStream {
+    let name = &input.ident;
+    let daft_lt = daft_lifetime();
+    let new_generics = add_lifetime_to_generics(input, &daft_lt);
+
+    // We use type generics, `ty_gen`, from our input type, and `impl_gen` and
+    // `where_clause` from `new_generics` that includes our new lifetime and
+    // bounds.
+    let (_, ty_gen, _) = &input.generics.split_for_impl();
+    let (impl_gen, _, where_clause) = &new_generics.split_for_impl();
+
+    quote! {
+        impl #impl_gen daft::Diffable<#daft_lt> for #name #ty_gen #where_clause
+        {
+            type Diff = daft::Leaf<#daft_lt, Self>;
+
+            fn diff(&#daft_lt self, other: &#daft_lt Self) -> Self::Diff {
+                Leaf {before: self, after: other}
+            }
+        }
+    }
+}
+
+/// Create the `Diff` struct
 fn make_diff_struct(input: &DeriveInput, s: &DataStruct) -> TokenStream {
     // The name of the original type
     let vis = &input.vis;
@@ -48,20 +95,27 @@ fn make_diff_struct(input: &DeriveInput, s: &DataStruct) -> TokenStream {
     let name = parse_str::<Path>(&format!("{}Diff", input.ident)).unwrap();
     let fields = generate_fields(&s.fields);
 
+    let daft_lt = daft_lifetime();
+
+    // We are creating a new type, so use only generics with our new lifetime
+    // and bounds
+    let new_generics = add_lifetime_to_generics(&input, &daft_lt);
+    let (_, ty_gen, where_clause) = &new_generics.split_for_impl();
+
     match &s.fields {
         Fields::Named(_) => quote! {
             #[derive(Debug, PartialEq, Eq)]
-            #vis struct #name<'a> {
+            #vis struct #name #ty_gen #where_clause {
                 #fields
             }
         },
         Fields::Unnamed(_) => quote! {
             #[derive(Debug, PartialEq, Eq)]
-            #vis struct #name<'a>(#fields);
+            #vis struct #name #ty_gen (#fields) #where_clause;
         },
         Fields::Unit => quote! {
             // This is kinda silly
-            #vis struct #name {}
+            #vis struct #name #ty_gen {} #where_clause
         },
     }
 }
@@ -75,11 +129,17 @@ fn make_diff_impl(input: &DeriveInput, s: &DataStruct) -> TokenStream {
     let name = parse_str::<Path>(&format!("{}Diff", input.ident)).unwrap();
     let diffs = generate_field_diffs(&s.fields);
 
-    quote! {
-        impl<'a> daft::Diffable<'a> for #ident {
-            type Diff = #name<'a>;
+    let daft_lt = daft_lifetime();
+    let new_generics = add_lifetime_to_generics(&input, &daft_lt);
 
-            fn diff(&'a self, other: &'a Self) -> Self::Diff {
+    let (_, ty_gen, _) = &input.generics.split_for_impl();
+    let (impl_gen, new_ty_gen, where_clause) = &new_generics.split_for_impl();
+
+    quote! {
+        impl #impl_gen daft::Diffable<#daft_lt> for #ident #ty_gen #where_clause {
+            type Diff = #name #new_ty_gen;
+
+            fn diff(&#daft_lt self, other: &#daft_lt Self) -> Self::Diff {
                 Self::Diff {
                     #diffs
                 }
@@ -92,13 +152,23 @@ fn make_diff_impl(input: &DeriveInput, s: &DataStruct) -> TokenStream {
 fn generate_fields(fields: &Fields) -> TokenStream {
     let fields = fields.iter().filter(|f| !has_ignore_attr(f)).map(|f| {
         let vis = &f.vis;
-        let ty = &f.ty;
+        let (lifetime, ty) = match &f.ty {
+            Type::Reference(type_ref) => (&type_ref.lifetime, &*type_ref.elem),
+            _ => (&None, &f.ty),
+        };
+        // Chose the right lifetime for the parameter
+        // If there is already a lifetime, use that. Otherwise use 'daft.
+        let lt = if lifetime.is_some() {
+            LifetimeParam::new(lifetime.as_ref().unwrap().clone())
+        } else {
+            daft_lifetime()
+        };
         match &f.ident {
             Some(ident) => quote! {
-                #vis #ident: <#ty as daft::Diffable<'a>>::Diff
+                #vis #ident: <#ty as daft::Diffable<#lt>>::Diff
             },
             None => quote! {
-                #vis <#ty as daft::Diffable<'a>>::Diff
+                #vis <#ty as daft::Diffable<#lt>>::Diff
             },
         }
     });
@@ -113,6 +183,11 @@ fn generate_field_diffs(fields: &Fields) -> TokenStream {
         .enumerate()
         .filter(|(_, f)| !has_ignore_attr(f))
         .map(|(i, f)| {
+            // We want to diff our types, not references to them
+            let deref = match &f.ty {
+                Type::Reference(_) => true,
+                _ => false
+            };
             let field_name = match &f.ident {
                 Some(ident) => quote! { #ident },
                 None => {
@@ -120,8 +195,14 @@ fn generate_field_diffs(fields: &Fields) -> TokenStream {
                     quote! { #ident }
                 }
             };
-            quote! {
-                #field_name: daft::Diffable::diff(&self.#field_name, &other.#field_name)
+            if deref {
+                quote! {
+                    #field_name: daft::Diffable::diff(&*self.#field_name, &*other.#field_name)
+                }
+            } else {
+                quote! {
+                    #field_name: daft::Diffable::diff(&self.#field_name, &other.#field_name)
+                }
             }
         });
     quote! { #(#field_diffs),* }

@@ -1,18 +1,19 @@
 pub use daft_derive::*;
 use newtype_uuid::{TypedUuid, TypedUuidKind};
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Debug;
 use std::net::{
     IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6,
 };
 
 pub trait Diffable<'a>: PartialEq + Eq {
-    type Diff: 'a;
+    type Diff: 'a + Eq + Debug;
     fn diff(&'a self, other: &'a Self) -> Self::Diff;
 }
 
 /// A primitive change
 #[derive(Debug, PartialEq, Eq)]
-pub struct Leaf<'a, T: PartialEq + Eq> {
+pub struct Leaf<'a, T: Eq> {
     pub before: &'a T,
     pub after: &'a T,
 }
@@ -83,7 +84,9 @@ impl<'a, T: 'a> SetDiff<'a, T> {
     }
 }
 
-impl<'a, K: Ord + 'a, V: Diffable<'a> + 'a> Diffable<'a> for BTreeMap<K, V> {
+impl<'a, K: Ord + Debug + 'a, V: Diffable<'a> + 'a + Debug> Diffable<'a>
+    for BTreeMap<K, V>
+{
     type Diff = MapDiff<'a, K, V>;
     fn diff(&'a self, other: &'a Self) -> Self::Diff {
         let mut diff = MapDiff::new();
@@ -107,7 +110,7 @@ impl<'a, K: Ord + 'a, V: Diffable<'a> + 'a> Diffable<'a> for BTreeMap<K, V> {
     }
 }
 
-impl<'a, T: Ord + 'a> Diffable<'a> for BTreeSet<T> {
+impl<'a, T: Ord + Debug + 'a> Diffable<'a> for BTreeSet<T> {
     type Diff = SetDiff<'a, T>;
     fn diff(&'a self, other: &'a Self) -> Self::Diff {
         let mut diff = SetDiff::new();
@@ -121,7 +124,7 @@ impl<'a, T: Ord + 'a> Diffable<'a> for BTreeSet<T> {
 /// Treat Vecs as Leafs
 //
 // We plan to add opt in diff functionality: set-like, reordered, etc...
-impl<'a, T: Diffable<'a> + 'a> Diffable<'a> for Vec<T> {
+impl<'a, T: Diffable<'a> + 'a + Debug> Diffable<'a> for Vec<T> {
     type Diff = Leaf<'a, Vec<T>>;
 
     fn diff(&'a self, other: &'a Self) -> Self::Diff {
@@ -213,5 +216,26 @@ mod tests {
         assert_eq!(diff.sled_state.added.len(), 1);
         assert_eq!(diff.sled_state.removed.len(), 0);
         assert_eq!(diff.sled_state.modified.len(), 1);
+    }
+
+    #[test]
+    fn lifetimes() {
+        struct F<'a, 'b, T> {
+            x: &'a usize,
+            y: &'b T,
+        }
+
+        #[derive(Debug)]
+        struct FDiff<'daft, 'a, 'b, T: Diffable<'daft>> {
+            x: &'a Leaf<'daft, usize>,
+            y: &'b <T as Diffable<'daft>>::Diff,
+        }
+
+        let a = F { x: &4, y: &5usize };
+        let b = F { x: &5, y: &6usize };
+
+        let diff = FDiff::<usize> { x: &a.x.diff(&b.x), y: &a.y.diff(&b.y) };
+
+        println!("{diff:?}");
     }
 }
