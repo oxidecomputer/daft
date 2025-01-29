@@ -1,7 +1,9 @@
 pub use daft_derive::*;
 use newtype_uuid::{TypedUuid, TypedUuidKind};
-use std::collections::{BTreeMap, BTreeSet};
+use paste::paste;
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Debug;
+use std::hash::Hash;
 use std::net::{
     IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6,
 };
@@ -66,74 +68,117 @@ where
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct MapDiff<'a, K, V: Diffable<'a>> {
-    pub unchanged: Vec<(&'a K, &'a V)>,
-    pub added: Vec<(&'a K, &'a V)>,
-    pub removed: Vec<(&'a K, &'a V)>,
-    pub modified: Vec<(&'a K, V::Diff)>,
-}
+/// Create a type `<MapType>Diff` and `impl Diffable` on it.
+///
+/// This is supported for `BTreeMap` and `HashMap`
+macro_rules! map_diff {
+    ($(($typ:ident, $key_constraint:ident)),*) => {
+        $(
+         paste! {
 
-impl<'a, K, V: Diffable<'a>> MapDiff<'a, K, V> {
-    pub fn new() -> MapDiff<'a, K, V> {
-        MapDiff {
-            unchanged: vec![],
-            added: vec![],
-            removed: vec![],
-            modified: vec![],
-        }
-    }
-}
+            #[derive(Debug, PartialEq, Eq)]
+            pub struct [<$typ Diff>]<'a, K: $key_constraint + Eq, V: Diffable<'a>> {
+                pub unchanged: $typ<&'a K, &'a V>,
+                pub added: $typ<&'a K, &'a V>,
+                pub removed: $typ<&'a K, &'a V>,
+                pub modified: $typ<&'a K, V::Diff>,
+            }
 
-#[derive(Debug, PartialEq, Eq, Default)]
-pub struct SetDiff<'a, T: 'a> {
-    pub unchanged: Vec<&'a T>,
-    pub added: Vec<&'a T>,
-    pub removed: Vec<&'a T>,
-}
-
-impl<'a, T: 'a> SetDiff<'a, T> {
-    pub fn new() -> SetDiff<'a, T> {
-        SetDiff { unchanged: vec![], added: vec![], removed: vec![] }
-    }
-}
-
-impl<'a, K: Ord + Debug + 'a, V: Diffable<'a> + 'a + Debug> Diffable<'a>
-    for BTreeMap<K, V>
-{
-    type Diff = MapDiff<'a, K, V>;
-    fn diff(&'a self, other: &'a Self) -> Self::Diff {
-        let mut diff = MapDiff::new();
-        for (k, v) in self {
-            if let Some(other_v) = other.get(k) {
-                if v != other_v {
-                    diff.modified.push((k, v.diff(other_v)));
-                } else {
-                    diff.unchanged.push((k, v));
+            impl<'a, K: $key_constraint + Eq, V: Diffable<'a>> [<$typ Diff>]<'a, K, V> {
+                pub fn new() -> Self {
+                    Self {
+                        unchanged: $typ::new(),
+                        added: $typ::new(),
+                        removed: $typ::new(),
+                        modified: $typ::new(),
+                    }
                 }
-            } else {
-                diff.removed.push((k, v));
             }
-        }
-        for (k, v) in other {
-            if !self.contains_key(k) {
-                diff.added.push((k, v));
+
+            impl<
+                'a,
+                 K: $key_constraint + Eq + Debug + 'a,
+                 V: Diffable<'a> + Debug + 'a>
+                     $crate::Diffable<'a> for $typ<K, V>
+            {
+                type Diff = [<$typ Diff>]<'a, K, V>;
+
+                fn diff(&'a self, other: &'a Self) -> Self::Diff {
+                    let mut diff = [<$typ Diff>]::new();
+                    for (k, v) in self {
+                        if let Some(other_v) = other.get(k) {
+                            if v != other_v {
+                                diff.modified.insert(k, v.diff(other_v));
+                            } else {
+                                diff.unchanged.insert(k, v);
+                            }
+                        } else {
+                            diff.removed.insert(k, v);
+                        }
+                    }
+                    for (k, v) in other {
+                        if !self.contains_key(k) {
+                            diff.added.insert(k, v);
+                        }
+                    }
+                    diff
+                }
             }
+
         }
-        diff
+        )*
     }
 }
 
-impl<'a, T: Ord + Debug + 'a> Diffable<'a> for BTreeSet<T> {
-    type Diff = SetDiff<'a, T>;
-    fn diff(&'a self, other: &'a Self) -> Self::Diff {
-        let mut diff = SetDiff::new();
-        diff.removed = self.difference(other).collect();
-        diff.added = other.difference(self).collect();
-        diff.unchanged = self.intersection(other).collect();
-        diff
+map_diff!((BTreeMap, Ord), (HashMap, Hash));
+
+/// Create a type `<SetType>Diff` and `impl Diffable` on it.
+///
+/// This is supported for `BTreeSet` and `HashSet`
+/// We use Vecs rather than sets internally to avoid requiring key constraints
+/// on `Leafs`
+macro_rules! set_diff{
+    ($(($typ:ident, $key_constraint:ident)),*) => {
+        $(
+         paste! {
+
+            #[derive(Debug, PartialEq, Eq)]
+            pub struct [<$typ Diff>]<'a, K: Diffable<'a>>  {
+                pub unchanged: Vec<&'a K>,
+                pub added: Vec<&'a K>,
+                pub removed: Vec<&'a K>,
+            }
+
+            impl<'a, K: Diffable<'a> + Debug> [<$typ Diff>]<'a, K> {
+                pub fn new() -> Self {
+                    Self {
+                        unchanged: Vec::new(),
+                        added: Vec::new(),
+                        removed: Vec::new(),
+                    }
+                }
+            }
+
+            impl<'a, K: $key_constraint + Debug + Diffable<'a> + 'a>
+                $crate::Diffable<'a> for $typ<K>
+            {
+                type Diff = [<$typ Diff>]<'a, K>;
+
+                fn diff(&'a self, other: &'a Self) -> Self::Diff {
+                    let mut diff = [<$typ Diff>]::new();
+                    diff.removed = self.difference(other).collect();
+                    diff.added = other.difference(self).collect();
+                    diff.unchanged = self.intersection(other).collect();
+                    diff
+                }
+            }
+
+        }
+        )*
     }
 }
+
+set_diff!((BTreeSet, Ord), (HashSet, Hash));
 
 /// Treat Vecs as Leafs
 //
@@ -153,29 +198,61 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_set() {
+    fn test_sets() {
         let a: BTreeSet<_> = [0, 1, 2, 3, 4, 5].into_iter().collect();
         let b: BTreeSet<_> = [3, 4, 5, 6, 7, 8].into_iter().collect();
         let changes = a.diff(&b);
-        let expected = SetDiff {
-            added: vec![&6, &7, &8],
-            removed: vec![&0, &1, &2],
-            unchanged: vec![&3, &4, &5],
+        let expected = BTreeSetDiff {
+            added: [&6, &7, &8].into_iter().collect(),
+            removed: [&0, &1, &2].into_iter().collect(),
+            unchanged: [&3, &4, &5].into_iter().collect(),
+        };
+        assert_eq!(expected, changes);
+
+        let a: HashSet<_> = [0, 1, 2, 3, 4, 5].into_iter().collect();
+        let b: HashSet<_> = [3, 4, 5, 6, 7, 8].into_iter().collect();
+        let mut changes = a.diff(&b);
+        // HashSet output must be sorted for comparison
+        changes.unchanged.sort_unstable();
+        changes.added.sort_unstable();
+        changes.removed.sort_unstable();
+
+        let expected = HashSetDiff {
+            added: [&6, &7, &8].into_iter().collect(),
+            removed: [&0, &1, &2].into_iter().collect(),
+            unchanged: [&3, &4, &5].into_iter().collect(),
         };
         assert_eq!(expected, changes);
     }
 
     #[test]
-    fn test_map() {
+    fn test_maps() {
         let a: BTreeMap<_, _> = [(0, 1), (1, 1), (2, 1)].into_iter().collect();
         let b: BTreeMap<_, _> = [(0, 2), (2, 1), (3, 1)].into_iter().collect();
 
         let changes = a.diff(&b);
-        let expected = MapDiff {
-            unchanged: vec![(&2, &1)],
-            added: vec![(&3, &1)],
-            removed: vec![(&1, &1)],
-            modified: vec![(&0, Leaf { before: &1, after: &2 })],
+        let expected = BTreeMapDiff {
+            unchanged: [(&2, &1)].into_iter().collect(),
+            added: [(&3, &1)].into_iter().collect(),
+            removed: [(&1, &1)].into_iter().collect(),
+            modified: [(&0, Leaf { before: &1, after: &2 })]
+                .into_iter()
+                .collect(),
+        };
+
+        assert_eq!(changes, expected);
+
+        let a: HashMap<_, _> = [(0, 1), (1, 1), (2, 1)].into_iter().collect();
+        let b: HashMap<_, _> = [(0, 2), (2, 1), (3, 1)].into_iter().collect();
+
+        let changes = a.diff(&b);
+        let expected = HashMapDiff {
+            unchanged: [(&2, &1)].into_iter().collect(),
+            added: [(&3, &1)].into_iter().collect(),
+            removed: [(&1, &1)].into_iter().collect(),
+            modified: [(&0, Leaf { before: &1, after: &2 })]
+                .into_iter()
+                .collect(),
         };
 
         assert_eq!(changes, expected);
@@ -201,7 +278,7 @@ mod tests {
         #[derive(Debug)]
         struct TestStructDiff<'a> {
             id: Leaf<'a, Uuid>,
-            sled_state: MapDiff<'a, Uuid, SledState>,
+            sled_state: BTreeMapDiff<'a, Uuid, SledState>,
         }
 
         let sled_states = vec![

@@ -1,8 +1,11 @@
 Daft is a library and proc macro for generating differences between types.
 `daft` is inspired by [diffus](https://github.com/distil/diffus) but simplified
-significantly. I (ajs) learned so much from using and reading the `diffus`
-code and I think it is awesome that stuff like that is made available to the
-community. `daft` as an alternative is purposefully adapted to Oxide's use case.
+significantly. I (ajs) learned so much from using and reading the `diffus` code
+and I think it is awesome that libraries like this are made available to the
+community. `daft` is an alternative purposefully adapted to Oxide's use case,
+but is more constrained than diffus. If you want string diff and enum diff
+support, you probably want to stick with diffus.
+
 The primary usage is to `#[derive(Diff)]` on types so that they are semantically
 diffable. See the
 [integration_test](https://github.com/oxidecomputer/daft/blob/main/daft-derive/tests/integration_test.rs)
@@ -38,6 +41,6 @@ the `before` and `after` values for primitives, enums, and other types like
 diffs, not text based diffs here.
 * For sets and maps we provide specific types that report changes as we
 would like to see them. For example, for maps we return separate collections
-containing which values were inserted, removed, modified, and unchangedy. In
+containing which values were inserted, removed, modified, and unchanged. In
 practice this is what we want to know, and so we don't force the user to compile
 this data by walking and matching the values.
