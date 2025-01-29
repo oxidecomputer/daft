@@ -1,7 +1,12 @@
 [package]
 name = "daft"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]
 daft-derive = { path = "../daft-derive" }
