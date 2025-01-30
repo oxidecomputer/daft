@@ -14,7 +14,7 @@ pub trait Diffable<'a>: PartialEq + Eq {
 }
 
 /// A primitive change
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Leaf<'a, T: Eq + Debug> {
     pub before: &'a T,
     pub after: &'a T,
