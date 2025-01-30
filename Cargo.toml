@@ -1,7 +1,13 @@
 [workspace]
+resolver = "2"
 members = [
     "daft",
     "daft-derive"
 ]
 
-default-members = [ "daft", "daft-derive"]
+[workspace.package]
+edition = "2021"
+repository = "https://github.com/oxidecomputer/daft"
+rust-version = "1.81.0"
+
+[workspace.lints]

@@ -1,7 +1,12 @@
 [package]
 name = "daft-derive"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
 
 [lib]
 proc-macro = true
