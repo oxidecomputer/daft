@@ -21,7 +21,7 @@ jobs:
       - name: Lint (clippy)
         run: cargo clippy --all-features --all-targets
       - name: Lint (rustfmt)
-        run: cargo fmt --check
+        run: cargo xfmt --check
       - name: Run rustdoc
         env:
           RUSTC_BOOTSTRAP: 1 # for feature(doc_cfg)

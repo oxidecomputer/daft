@@ -1,11 +1,11 @@
 pub use daft_derive::*;
 use newtype_uuid::{TypedUuid, TypedUuidKind};
 use paste::paste;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::fmt::Debug;
-use std::hash::Hash;
-use std::net::{
-    IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6,
+use std::{
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    fmt::Debug,
+    hash::Hash,
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
 };
 
 pub trait Diffable<'a>: PartialEq + Eq {
@@ -209,9 +209,8 @@ impl<'a, T: Diffable<'a> + 'a + Debug> Diffable<'a> for Vec<T> {
 
 #[cfg(test)]
 mod tests {
-    use uuid::Uuid;
-
     use super::*;
+    use uuid::Uuid;
 
     #[test]
     fn test_sets() {

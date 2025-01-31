@@ -1,7 +1,9 @@
 use daft::{Diffable, Leaf};
 use daft_derive::Diff;
-use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Debug;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt::Debug,
+};
 use uuid::Uuid;
 
 #[derive(Debug, Eq, PartialEq, Diff)]
