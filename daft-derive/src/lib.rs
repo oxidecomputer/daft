@@ -20,8 +20,8 @@ pub fn derive_diff(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             .into()
         }
         Data::Struct(s) => {
-            let generated_struct = make_diff_struct(&input, &s);
-            let diff_impl = make_diff_impl(&input, &s);
+            let generated_struct = make_diff_struct(&input, s);
+            let diff_impl = make_diff_impl(&input, s);
             // Uncomment for some debugging
             // eprintln!("{generated_struct}");
             // eprintln!("{diff_impl}");
@@ -100,7 +100,7 @@ fn make_diff_struct(input: &DeriveInput, s: &DataStruct) -> TokenStream {
 
     // We are creating a new type, so use only generics with our new lifetime
     // and bounds
-    let new_generics = add_lifetime_to_generics(&input, &daft_lt);
+    let new_generics = add_lifetime_to_generics(input, &daft_lt);
     let (_, ty_gen, where_clause) = &new_generics.split_for_impl();
 
     match &s.fields {
@@ -131,7 +131,7 @@ fn make_diff_impl(input: &DeriveInput, s: &DataStruct) -> TokenStream {
     let diffs = generate_field_diffs(&s.fields);
 
     let daft_lt = daft_lifetime();
-    let new_generics = add_lifetime_to_generics(&input, &daft_lt);
+    let new_generics = add_lifetime_to_generics(input, &daft_lt);
 
     let (_, ty_gen, _) = &input.generics.split_for_impl();
     let (impl_gen, new_ty_gen, where_clause) = &new_generics.split_for_impl();
@@ -186,10 +186,8 @@ fn generate_field_diffs(fields: &Fields) -> TokenStream {
         fields.iter().enumerate().filter(|(_, f)| !has_ignore_attr(f)).map(
             |(i, f)| {
                 // We want to diff our types, not references to them
-                let deref = match &f.ty {
-                    Type::Reference(_) => true,
-                    _ => false,
-                };
+                let deref = matches!(f.ty, Type::Reference(_));
+
                 let field_name = match &f.ident {
                     Some(ident) => quote! { #ident },
                     None => {

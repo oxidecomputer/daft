@@ -95,6 +95,14 @@ macro_rules! map_diff {
                 }
             }
 
+            // Note: not deriving Default here because we don't want to require
+            // K or V to be Default.
+            impl<'a, K: $key_constraint + Eq, V: Diffable<'a>> Default for [<$typ Diff>]<'a, K, V> {
+                fn default() -> Self {
+                    Self::new()
+                }
+            }
+
             impl<
                 'a,
                  K: $key_constraint + Eq + Debug + 'a,
@@ -156,6 +164,14 @@ macro_rules! set_diff{
                         added: Vec::new(),
                         removed: Vec::new(),
                     }
+                }
+            }
+
+            // Note: not deriving Default here because we don't want to require
+            // K to be Default.
+            impl<'a, K: Diffable<'a> + Debug> Default for [<$typ Diff>]<'a, K> {
+                fn default() -> Self {
+                    Self::new()
                 }
             }
 
