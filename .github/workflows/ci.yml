@@ -1,0 +1,54 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+name: CI
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2.7.3
+      - name: Lint (clippy)
+        run: cargo clippy --all-features --all-targets
+      - name: Lint (rustfmt)
+        run: cargo xfmt --check
+      - name: Run rustdoc
+        env:
+          RUSTC_BOOTSTRAP: 1 # for feature(doc_cfg)
+          RUSTDOCFLAGS: -Dwarnings --cfg doc_cfg
+        run: cargo doc --all-features --workspace
+      - name: Check for differences
+        run: git diff --exit-code
+
+  build-and-test:
+    name: Build and test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        # 1.81 is the MSRV
+        rust-version: ["1.81", stable]
+      fail-fast: false
+    env:
+      RUSTFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust-version }}
+      - uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2
+      - uses: taiki-e/install-action@cargo-hack
+      - name: Build
+        run: cargo build --all-features --workspace
+      - name: Test
+        run: cargo test --all-features --workspace
