@@ -12,10 +12,18 @@ workspace = true
 proc-macro = true
 
 [dependencies]
-syn = { version = "2.0", features = ["full"] }
-quote = "1.0"
-proc-macro2 = "1.0"
+proc-macro2.workspace = true
+quote.workspace = true
+syn = { workspace = true, features = ["full"] }
 
 [dev-dependencies]
 daft = { path = "../daft" }
-uuid = { version = "1.12.0", features = ["v4"] }
+datatest-stable.workspace = true
+expectorate.workspace = true
+prettyplease.workspace = true
+trybuild.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+
+[[test]]
+name = "snapshot_test"
+harness = false

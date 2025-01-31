@@ -10,7 +10,7 @@ workspace = true
 
 [dependencies]
 daft-derive = { path = "../daft-derive" }
-newtype-uuid = "1.2.1"
-oxnet = { git = "https://github.com/oxidecomputer/oxnet" }
-paste = "1.0.15"
-uuid = { version = "1.12.0", features = ["v4"] }
+newtype-uuid.workspace = true
+oxnet.workspace = true
+paste.workspace = true
+uuid = { workspace = true, features = ["v4"] }
