@@ -19,7 +19,6 @@ pub fn derive_diff(input: syn::DeriveInput) -> TokenStream {
             quote! {
                 #out
             }
-            .into()
         }
         Data::Struct(s) => {
             let generated_struct = make_diff_struct(&input, s);
@@ -31,14 +30,12 @@ pub fn derive_diff(input: syn::DeriveInput) -> TokenStream {
                 #generated_struct
                 #diff_impl
             }
-            .into()
         }
 
         Data::Union(_) => quote! {
             // Implement all Unions as `Leaf`s
             daft::leaf!(#name);
-        }
-        .into(),
+        },
     }
 }
 
