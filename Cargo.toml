@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     "daft",
-    "daft-derive"
+    "daft-derive",
 ]
 
 [workspace.package]
@@ -11,3 +11,17 @@ repository = "https://github.com/oxidecomputer/daft"
 rust-version = "1.81.0"
 
 [workspace.lints]
+
+[workspace.dependencies]
+datatest-stable = "0.3.2"
+daft-derive = { path = "daft-derive" }
+expectorate = "1.1.0"
+newtype-uuid = "1.2.1"
+oxnet = { git = "https://github.com/oxidecomputer/oxnet" }
+paste = "1.0.15"
+prettyplease = "0.2.29"
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = "2.0"
+trybuild = "1.0.103"
+uuid = "1.12.0"
