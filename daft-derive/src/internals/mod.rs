@@ -5,7 +5,7 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{
-    parse_quote, parse_str, Data, DataStruct, DeriveInput, Expr, Fields,
+    parse_quote, parse_str, Data, DataStruct, DeriveInput, Expr, Field, Fields,
     GenericParam, Generics, Index, Lifetime, LifetimeParam, Path, Token,
     WhereClause, WherePredicate,
 };
@@ -274,47 +274,24 @@ struct DiffFields {
 
 impl DiffFields {
     fn new(fields: &Fields, where_clause: Option<&WhereClause>) -> Self {
-        let daft_crate = daft_crate();
-        // Always use the daft lifetime for the diff -- associations between the
-        // daft lifetime and existing parameters (both lifetime and type
-        // parameters) are created in `add_lifetime_to_generics`, e.g. `'a:
-        // '__daft`, or `T: '__daft`.
-        let lt = daft_lifetime();
-
         let fields = match fields {
             Fields::Named(fields) => {
-                let diff_fields =
-                    fields.named.iter().filter(|f| !has_ignore_attr(f)).map(
-                        |f| {
-                            let ty = &f.ty;
-                            let mut f = f.clone();
-
-                            f.ty = parse_quote! {
-                                <#ty as #daft_crate::Diffable>::Diff<#lt>
-                            };
-
-                            f
-                        },
-                    );
+                let diff_fields = fields
+                    .named
+                    .iter()
+                    .filter(|f| !has_ignore_attr(f))
+                    .map(|f| Self::diff_field(f));
                 Fields::Named(syn::FieldsNamed {
                     brace_token: fields.brace_token,
                     named: diff_fields.collect(),
                 })
             }
             Fields::Unnamed(fields) => {
-                let diff_fields =
-                    fields.unnamed.iter().filter(|f| !has_ignore_attr(f)).map(
-                        |f| {
-                            let ty = &f.ty;
-                            let mut f = f.clone();
-
-                            f.ty = parse_quote! {
-                                <#ty as #daft_crate::Diffable>::Diff<#lt>
-                            };
-
-                            f
-                        },
-                    );
+                let diff_fields = fields
+                    .unnamed
+                    .iter()
+                    .filter(|f| !has_ignore_attr(f))
+                    .map(|f| Self::diff_field(f));
                 Fields::Unnamed(syn::FieldsUnnamed {
                     paren_token: fields.paren_token,
                     unnamed: diff_fields.collect(),
@@ -331,6 +308,30 @@ impl DiffFields {
             });
 
         Self { fields, where_clause }
+    }
+
+    /// Return a field for a diff with the appropriate type
+    fn diff_field(f: &Field) -> Field {
+        // Always use the daft lifetime for the diff -- associations between the
+        // daft lifetime and existing parameters (both lifetime and type
+        // parameters) are created in `add_lifetime_to_generics`, e.g. `'a:
+        // '__daft`, or `T: '__daft`.
+        let lt = daft_lifetime();
+        let daft_crate = daft_crate();
+        let ty = &f.ty;
+        let mut f = f.clone();
+
+        f.ty = if has_leaf_attr(&f) {
+            parse_quote! {
+                #daft_crate::Leaf<#lt, #ty>
+            }
+        } else {
+            parse_quote! {
+                <#ty as #daft_crate::Diffable>::Diff<#lt>
+            }
+        };
+
+        f
     }
 
     /// Returns an iterator over field types.
@@ -377,12 +378,20 @@ fn generate_field_diffs(fields: &Fields) -> TokenStream {
                         quote! { #ident }
                     }
                 };
-
-                quote! {
-                    #field_name: #daft_crate::Diffable::diff(
-                        &self.#field_name,
-                        &other.#field_name
-                    )
+                if has_leaf_attr(f) {
+                    quote! {
+                        #field_name: #daft_crate::Leaf {
+                            before: &self.#field_name,
+                            after: &other.#field_name
+                        }
+                    }
+                } else {
+                    quote! {
+                        #field_name: #daft_crate::Diffable::diff(
+                            &self.#field_name,
+                            &other.#field_name
+                        )
+                    }
                 }
             },
         );
@@ -391,11 +400,21 @@ fn generate_field_diffs(fields: &Fields) -> TokenStream {
 
 // Is the field tagged with `#[daft(ignore)]` ?
 fn has_ignore_attr(field: &syn::Field) -> bool {
+    has_attr(field, "ignore")
+}
+
+// Is the field tagged with `#[daft(leaf)]`
+fn has_leaf_attr(field: &syn::Field) -> bool {
+    has_attr(field, "leaf")
+}
+
+// Is the field tagged with a given attribute?
+fn has_attr(field: &syn::Field, attribute_name: &str) -> bool {
     field.attrs.iter().any(|attr| {
         if attr.path().is_ident("daft") {
             // Ignore failures
             if let Ok(meta) = attr.parse_args::<syn::Meta>() {
-                if meta.path().is_ident("ignore") {
+                if meta.path().is_ident(attribute_name) {
                     return true;
                 }
             }
