@@ -10,5 +10,5 @@
 #[test]
 fn ui() {
     let t = trybuild::TestCases::new();
-    t.pass("tests/snapshots/valid/*.rs");
+    t.pass("tests/fixtures/valid/*.rs");
 }
