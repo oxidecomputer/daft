@@ -2,32 +2,40 @@ pub use daft_derive::*;
 use newtype_uuid::{TypedUuid, TypedUuidKind};
 use paste::paste;
 use std::{
+    cell::RefCell,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    ffi::{OsStr, OsString},
     fmt::Debug,
     hash::Hash,
+    marker::PhantomData,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
+    path::{Path, PathBuf},
+    rc::Rc,
+    sync::Arc,
 };
 
-pub trait Diffable<'a>: PartialEq + Eq {
-    type Diff: 'a + Eq + Debug;
-    fn diff(&'a self, other: &'a Self) -> Self::Diff;
+pub trait Diffable: PartialEq + Eq {
+    type Diff<'daft>: Eq + Debug
+    where
+        Self: 'daft;
+    fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft>;
 }
 
 /// A primitive change
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Leaf<'a, T: Eq + Debug> {
-    pub before: &'a T,
-    pub after: &'a T,
+pub struct Leaf<'daft, T: Eq + Debug + ?Sized> {
+    pub before: &'daft T,
+    pub after: &'daft T,
 }
 
 #[macro_export]
 macro_rules! leaf{
     ($($typ:ty),*) => {
         $(
-            impl<'a> $crate::Diffable<'a> for $typ {
-                type Diff = $crate::Leaf<'a, Self>;
+            impl $crate::Diffable for $typ {
+                type Diff<'daft> = $crate::Leaf<'daft, Self>;
 
-                fn diff(&'a self, other: &'a Self) -> Self::Diff {
+                fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
                     $crate::Leaf {
                         before: self,
                         after: other
@@ -41,29 +49,105 @@ macro_rules! leaf{
 leaf! { i64, i32, i16, i8, u64, u32, u16, u8, char, bool, isize, usize, (), uuid::Uuid}
 leaf! { IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6 }
 leaf! { oxnet::IpNet, oxnet::Ipv4Net, oxnet::Ipv6Net }
-leaf! { String }
+leaf! { String, str, PathBuf, Path, OsString, OsStr }
 
-impl<'a, T: Eq + Debug + 'a> Diffable<'a> for Option<T> {
-    type Diff = Leaf<'a, Option<T>>;
-    fn diff(&'a self, other: &'a Self) -> Self::Diff {
+impl<T: Eq + Debug> Diffable for Option<T> {
+    type Diff<'daft>
+        = Leaf<'daft, Option<T>>
+    where
+        T: 'daft;
+
+    fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
         Leaf { before: self, after: other }
     }
 }
 
-impl<'a, T: Eq + Debug + 'a, U: Eq + Debug + 'a> Diffable<'a> for Result<T, U> {
-    type Diff = Leaf<'a, Result<T, U>>;
-    fn diff(&'a self, other: &'a Self) -> Self::Diff {
+impl<T: Eq + Debug, U: Eq + Debug> Diffable for Result<T, U> {
+    type Diff<'daft>
+        = Leaf<'daft, Result<T, U>>
+    where
+        T: 'daft,
+        U: 'daft;
+    fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
         Leaf { before: self, after: other }
     }
 }
 
-impl<'a, T> Diffable<'a> for TypedUuid<T>
+impl<T: Diffable + ?Sized> Diffable for Box<T> {
+    type Diff<'daft>
+        = <T as Diffable>::Diff<'daft>
+    where
+        T: 'daft;
+
+    fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
+        (**self).diff(other)
+    }
+}
+
+impl<'a, T: Diffable + ?Sized> Diffable for &'a T {
+    type Diff<'daft>
+        = <T as Diffable>::Diff<'daft>
+    where
+        &'a T: 'daft;
+
+    fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
+        (**self).diff(other)
+    }
+}
+
+impl<T: Diffable + ?Sized> Diffable for Arc<T> {
+    type Diff<'daft>
+        = <T as Diffable>::Diff<'daft>
+    where
+        T: 'daft;
+
+    fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
+        (**self).diff(other)
+    }
+}
+
+impl<T: Diffable + ?Sized> Diffable for Rc<T> {
+    type Diff<'daft>
+        = <T as Diffable>::Diff<'daft>
+    where
+        T: 'daft;
+
+    fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
+        (**self).diff(other)
+    }
+}
+
+// Can't express lifetimes due to `RefCell`'s limited borrows, so we must return
+// a leaf node that can be recursively diffed.
+impl<T: Eq + Debug + ?Sized> Diffable for RefCell<T> {
+    type Diff<'daft>
+        = Leaf<'daft, Self>
+    where
+        T: 'daft;
+
+    fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
+        Leaf { before: self, after: other }
+    }
+}
+
+impl<T: ?Sized> Diffable for PhantomData<T> {
+    type Diff<'daft>
+        = Leaf<'daft, PhantomData<T>>
+    where
+        Self: 'daft;
+
+    fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
+        Leaf { before: self, after: other }
+    }
+}
+
+impl<T> Diffable for TypedUuid<T>
 where
-    T: TypedUuidKind + Diffable<'a>,
+    T: TypedUuidKind + Diffable,
 {
-    type Diff = Leaf<'a, TypedUuid<T>>;
+    type Diff<'daft> = Leaf<'daft, TypedUuid<T>>;
 
-    fn diff(&'a self, other: &'a Self) -> Self::Diff {
+    fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
         Leaf { before: self, after: other }
     }
 }
@@ -77,14 +161,14 @@ macro_rules! map_diff {
          paste! {
 
             #[derive(Debug, PartialEq, Eq)]
-            pub struct [<$typ Diff>]<'a, K: $key_constraint + Eq, V: Diffable<'a>> {
-                pub unchanged: $typ<&'a K, &'a V>,
-                pub added: $typ<&'a K, &'a V>,
-                pub removed: $typ<&'a K, &'a V>,
-                pub modified: $typ<&'a K, V::Diff>,
+            pub struct [<$typ Diff>]<'daft, K: $key_constraint + Eq, V: Diffable> {
+                pub unchanged: $typ<&'daft K, &'daft V>,
+                pub added: $typ<&'daft K, &'daft V>,
+                pub removed: $typ<&'daft K, &'daft V>,
+                pub modified: $typ<&'daft K, V::Diff<'daft>>,
             }
 
-            impl<'a, K: $key_constraint + Eq, V: Diffable<'a>> [<$typ Diff>]<'a, K, V> {
+            impl<'daft, K: $key_constraint + Eq, V: Diffable> [<$typ Diff>]<'daft, K, V> {
                 pub fn new() -> Self {
                     Self {
                         unchanged: $typ::new(),
@@ -97,21 +181,20 @@ macro_rules! map_diff {
 
             // Note: not deriving Default here because we don't want to require
             // K or V to be Default.
-            impl<'a, K: $key_constraint + Eq, V: Diffable<'a>> Default for [<$typ Diff>]<'a, K, V> {
+            impl<'daft, K: $key_constraint + Eq, V: Diffable> Default for [<$typ Diff>]<'daft, K, V> {
                 fn default() -> Self {
                     Self::new()
                 }
             }
 
             impl<
-                'a,
-                 K: $key_constraint + Eq + Debug + 'a,
-                 V: Diffable<'a> + Debug + 'a>
-                     $crate::Diffable<'a> for $typ<K, V>
+                 K: $key_constraint + Eq + Debug,
+                 V: Diffable + Debug>
+                     $crate::Diffable for $typ<K, V>
             {
-                type Diff = [<$typ Diff>]<'a, K, V>;
+                type Diff<'daft> = [<$typ Diff>]<'daft, K, V> where K: 'daft, V: 'daft;
 
-                fn diff(&'a self, other: &'a Self) -> Self::Diff {
+                fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
                     let mut diff = [<$typ Diff>]::new();
                     for (k, v) in self {
                         if let Some(other_v) = other.get(k) {
@@ -151,13 +234,13 @@ macro_rules! set_diff{
          paste! {
 
             #[derive(Debug, PartialEq, Eq)]
-            pub struct [<$typ Diff>]<'a, K: Diffable<'a>>  {
-                pub unchanged: Vec<&'a K>,
-                pub added: Vec<&'a K>,
-                pub removed: Vec<&'a K>,
+            pub struct [<$typ Diff>]<'daft, K: Diffable>  {
+                pub unchanged: Vec<&'daft K>,
+                pub added: Vec<&'daft K>,
+                pub removed: Vec<&'daft K>,
             }
 
-            impl<'a, K: Diffable<'a> + Debug> [<$typ Diff>]<'a, K> {
+            impl<'daft, K: Diffable + Debug> [<$typ Diff>]<'daft, K> {
                 pub fn new() -> Self {
                     Self {
                         unchanged: Vec::new(),
@@ -169,18 +252,18 @@ macro_rules! set_diff{
 
             // Note: not deriving Default here because we don't want to require
             // K to be Default.
-            impl<'a, K: Diffable<'a> + Debug> Default for [<$typ Diff>]<'a, K> {
+            impl<'daft, K: Diffable + Debug> Default for [<$typ Diff>]<'daft, K> {
                 fn default() -> Self {
                     Self::new()
                 }
             }
 
-            impl<'a, K: $key_constraint + Debug + Diffable<'a> + 'a>
-                $crate::Diffable<'a> for $typ<K>
+            impl<K: $key_constraint + Debug + Diffable>
+                $crate::Diffable for $typ<K>
             {
-                type Diff = [<$typ Diff>]<'a, K>;
+                type Diff<'daft> = [<$typ Diff>]<'daft, K> where K: 'daft;
 
-                fn diff(&'a self, other: &'a Self) -> Self::Diff {
+                fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
                     let mut diff = [<$typ Diff>]::new();
                     diff.removed = self.difference(other).collect();
                     diff.added = other.difference(self).collect();
@@ -199,10 +282,25 @@ set_diff!((BTreeSet, Ord), (HashSet, Hash));
 /// Treat Vecs as Leafs
 //
 // We plan to add opt in diff functionality: set-like, reordered, etc...
-impl<'a, T: Diffable<'a> + 'a + Debug> Diffable<'a> for Vec<T> {
-    type Diff = Leaf<'a, Vec<T>>;
+impl<T: Diffable + Debug> Diffable for Vec<T> {
+    type Diff<'daft>
+        = Leaf<'daft, Vec<T>>
+    where
+        T: 'daft;
 
-    fn diff(&'a self, other: &'a Self) -> Self::Diff {
+    fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
+        Leaf { before: self, after: other }
+    }
+}
+
+/// Treat slices as leaf nodes.
+impl<T: Diffable + Debug> Diffable for [T] {
+    type Diff<'daft>
+        = Leaf<'daft, [T]>
+    where
+        T: 'daft;
+
+    fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
         Leaf { before: self, after: other }
     }
 }
@@ -291,9 +389,9 @@ mod tests {
         // This is what daft-derive should generate
         // for `TestStruct`
         #[derive(Debug)]
-        struct TestStructDiff<'a> {
-            id: Leaf<'a, Uuid>,
-            sled_state: BTreeMapDiff<'a, Uuid, SledState>,
+        struct TestStructDiff<'daft> {
+            id: Leaf<'daft, Uuid>,
+            sled_state: BTreeMapDiff<'daft, Uuid, SledState>,
         }
 
         let sled_states = vec![
