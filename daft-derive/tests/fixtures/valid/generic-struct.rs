@@ -1,8 +1,7 @@
 use daft::Diff;
-use std::fmt::Debug;
 
 #[derive(Debug, Eq, PartialEq, Diff)]
-struct StructWithGenerics<'d, 'e, T: Eq + Debug, U: Eq + Debug>
+struct StructWithGenerics<'d, 'e, T, U>
 where
     T: daft::Diffable + 'd + ?Sized,
     U: daft::Diffable + 'e + ?Sized,

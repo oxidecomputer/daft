@@ -15,8 +15,8 @@ use std::{
     sync::Arc,
 };
 
-pub trait Diffable: PartialEq + Eq {
-    type Diff<'daft>: Eq + Debug
+pub trait Diffable {
+    type Diff<'daft>
     where
         Self: 'daft;
     fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft>;
@@ -24,7 +24,7 @@ pub trait Diffable: PartialEq + Eq {
 
 /// A primitive change
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Leaf<'daft, T: Eq + Debug + ?Sized> {
+pub struct Leaf<'daft, T: ?Sized> {
     pub before: &'daft T,
     pub after: &'daft T,
 }
@@ -52,7 +52,7 @@ leaf! { IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6 }
 leaf! { oxnet::IpNet, oxnet::Ipv4Net, oxnet::Ipv6Net }
 leaf! { String, str, PathBuf, Path, OsString, OsStr }
 
-impl<T: Eq + Debug> Diffable for Option<T> {
+impl<T> Diffable for Option<T> {
     type Diff<'daft>
         = Leaf<'daft, Option<T>>
     where
@@ -63,7 +63,7 @@ impl<T: Eq + Debug> Diffable for Option<T> {
     }
 }
 
-impl<T: Eq + Debug, U: Eq + Debug> Diffable for Result<T, U> {
+impl<T, U> Diffable for Result<T, U> {
     type Diff<'daft>
         = Leaf<'daft, Result<T, U>>
     where
@@ -131,7 +131,7 @@ impl<T: Diffable + ?Sized> Diffable for Rc<T> {
 
 // Can't express lifetimes due to `RefCell`'s limited borrows, so we must return
 // a leaf node that can be recursively diffed.
-impl<T: Eq + Debug + ?Sized> Diffable for RefCell<T> {
+impl<T: ?Sized> Diffable for RefCell<T> {
     type Diff<'daft>
         = Leaf<'daft, Self>
     where
@@ -200,8 +200,8 @@ macro_rules! map_diff {
             }
 
             impl<
-                 K: $key_constraint + Eq + Debug,
-                 V: Diffable + Debug>
+                 K: $key_constraint + Eq,
+                 V: Diffable + Eq>
                      $crate::Diffable for $typ<K, V>
             {
                 type Diff<'daft> = [<$typ Diff>]<'daft, K, V> where K: 'daft, V: 'daft;
@@ -252,7 +252,7 @@ macro_rules! set_diff{
                 pub removed: Vec<&'daft K>,
             }
 
-            impl<'daft, K: Diffable + Debug> [<$typ Diff>]<'daft, K> {
+            impl<'daft, K: Diffable> [<$typ Diff>]<'daft, K> {
                 pub fn new() -> Self {
                     Self {
                         unchanged: Vec::new(),
@@ -264,13 +264,13 @@ macro_rules! set_diff{
 
             // Note: not deriving Default here because we don't want to require
             // K to be Default.
-            impl<'daft, K: Diffable + Debug> Default for [<$typ Diff>]<'daft, K> {
+            impl<'daft, K: Diffable> Default for [<$typ Diff>]<'daft, K> {
                 fn default() -> Self {
                     Self::new()
                 }
             }
 
-            impl<K: $key_constraint + Debug + Diffable>
+            impl<K: $key_constraint + Eq + Diffable>
                 $crate::Diffable for $typ<K>
             {
                 type Diff<'daft> = [<$typ Diff>]<'daft, K> where K: 'daft;
@@ -294,7 +294,7 @@ set_diff!((BTreeSet, Ord), (HashSet, Hash));
 /// Treat Vecs as Leafs
 //
 // We plan to add opt in diff functionality: set-like, reordered, etc...
-impl<T: Diffable + Debug> Diffable for Vec<T> {
+impl<T: Diffable> Diffable for Vec<T> {
     type Diff<'daft>
         = Leaf<'daft, Vec<T>>
     where
@@ -306,7 +306,7 @@ impl<T: Diffable + Debug> Diffable for Vec<T> {
 }
 
 /// Treat slices as leaf nodes.
-impl<T: Diffable + Debug> Diffable for [T] {
+impl<T: Diffable> Diffable for [T] {
     type Diff<'daft>
         = Leaf<'daft, [T]>
     where

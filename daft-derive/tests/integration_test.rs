@@ -87,7 +87,7 @@ fn test_basic() {
 #[test]
 fn test_enum_with_generics() {
     #[derive(Debug, Eq, PartialEq, Diff)]
-    enum EnumWithGenerics<'a, T: Eq + Debug, U: Eq + Debug> {
+    enum EnumWithGenerics<'a, T, U> {
         A(T),
         B(&'a U),
     }
@@ -103,7 +103,7 @@ fn test_enum_with_generics() {
 #[test]
 fn test_struct_with_generics() {
     #[derive(Debug, Eq, PartialEq, Diff)]
-    struct StructWithGenerics<'d, 'e, T: Eq + Debug, U: Eq + Debug>
+    struct StructWithGenerics<'d, 'e, T, U>
     where
         T: Diffable + 'd,
         U: Diffable + 'e,
@@ -125,8 +125,8 @@ fn test_struct_with_generics() {
     #[derive(Debug, Eq, PartialEq, Diff)]
     struct S<'a, T, U>
     where
-        T: Diffable + Debug + Eq + 'a,
-        U: Diffable + Debug + Eq + 'a,
+        T: Diffable + Eq + 'a,
+        U: Diffable + 'a,
     {
         a: BTreeMap<usize, T>,
         b: usize,
