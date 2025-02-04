@@ -105,8 +105,8 @@ fn test_struct_with_generics() {
     #[derive(Debug, Eq, PartialEq, Diff)]
     struct StructWithGenerics<'d, 'e, T: Eq + Debug, U: Eq + Debug>
     where
-        T: Diffable<'d>,
-        U: Diffable<'e>,
+        T: Diffable + 'd,
+        U: Diffable + 'e,
     {
         b: usize,
         c: &'d T,
@@ -125,8 +125,8 @@ fn test_struct_with_generics() {
     #[derive(Debug, Eq, PartialEq, Diff)]
     struct S<'a, T, U>
     where
-        for<'x> T: Diffable<'x> + Debug + Eq + 'x,
-        U: Diffable<'a> + Debug + Eq,
+        T: Diffable + Debug + Eq + 'a,
+        U: Diffable + Debug + Eq + 'a,
     {
         a: BTreeMap<usize, T>,
         b: usize,
