@@ -107,6 +107,11 @@ fn make_diff_struct(input: &DeriveInput, s: &DataStruct) -> TokenStream {
     // The name of the generated type
     let name = parse_str::<Path>(&format!("{}Diff", input.ident)).unwrap();
 
+    // Copy over the non-exhaustive attribute from the original struct. (Do we
+    // need to copy over other attributes?)
+    let non_exhaustive =
+        input.attrs.iter().find(|attr| attr.path().is_ident("non_exhaustive"));
+
     let daft_lt = daft_lifetime();
 
     // We are creating a new type, so use only generics with our new lifetime
@@ -125,14 +130,17 @@ fn make_diff_struct(input: &DeriveInput, s: &DataStruct) -> TokenStream {
 
     let struct_def = match &s.fields {
         Fields::Named(_) => quote! {
+            #non_exhaustive
             #vis struct #name #new_generics #where_clause #diff_fields
 
         },
         Fields::Unnamed(_) => quote! {
+            #non_exhaustive
             #vis struct #name #new_generics #diff_fields #where_clause;
         },
         Fields::Unit => quote! {
             // This is kinda silly
+            #non_exhaustive
             #vis struct #name #new_generics {} #where_clause
         },
     };
@@ -147,24 +155,32 @@ fn make_diff_struct(input: &DeriveInput, s: &DataStruct) -> TokenStream {
             .where_clause_with_trait_bound(&parse_quote! { ::std::fmt::Debug });
         let members = diff_fields.fields.members();
 
+        let finish = if non_exhaustive.is_some() {
+            quote! { .finish_non_exhaustive() }
+        } else {
+            quote! { .finish() }
+        };
+
         let debug_body = match &s.fields {
-            Fields::Named(_) => quote! {
-                f.debug_struct(stringify!(#name))
-                #(
-                    .field(stringify!(#members), &self.#members)
-                )*
-                .finish()
-            },
+            Fields::Named(_) => {
+                quote! {
+                    f.debug_struct(stringify!(#name))
+                    #(
+                        .field(stringify!(#members), &self.#members)
+                    )*
+                    #finish
+                }
+            }
             Fields::Unnamed(_) => quote! {
                 f.debug_tuple(stringify!(#name))
                 #(
                     .field(&self.#members)
                 )*
-                .finish()
+                #finish
             },
             Fields::Unit => quote! {
                 f.debug_struct(stringify!(#name))
-                    .finish()
+                    #finish
             },
         };
         quote! {
