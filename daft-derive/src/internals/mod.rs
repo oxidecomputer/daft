@@ -236,6 +236,9 @@ fn make_diff_impl(input: &DeriveInput, s: &DataStruct) -> TokenStream {
 /// will be put into that struct.
 ///
 /// This also tracks the `where` clause.
+///
+/// The goal of this wrapper is to provide helpers to iterate over the fields
+/// and members.
 struct DiffFields {
     fields: Fields,
     // The base where clause for the diff struct.
