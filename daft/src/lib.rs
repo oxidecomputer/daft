@@ -1,5 +1,6 @@
+#![cfg_attr(doc_cfg, feature(doc_auto_cfg))]
+
 pub use daft_derive::*;
-use newtype_uuid::{TypedUuid, TypedUuidKind};
 use paste::paste;
 use std::{
     borrow::Cow,
@@ -31,8 +32,9 @@ pub struct Leaf<'daft, T: ?Sized> {
 
 #[macro_export]
 macro_rules! leaf{
-    ($($typ:ty),*) => {
+    ($($(#[$($outer:meta)*])* $typ:ty),*) => {
         $(
+            $(#[$($outer)*])*
             impl $crate::Diffable for $typ {
                 type Diff<'daft> = $crate::Leaf<'daft, Self>;
 
@@ -47,10 +49,21 @@ macro_rules! leaf{
     }
 }
 
-leaf! { i64, i32, i16, i8, u64, u32, u16, u8, char, bool, isize, usize, (), uuid::Uuid}
+leaf! { i64, i32, i16, i8, u64, u32, u16, u8, char, bool, isize, usize, () }
 leaf! { IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6 }
-leaf! { oxnet::IpNet, oxnet::Ipv4Net, oxnet::Ipv6Net }
 leaf! { String, str, PathBuf, Path, OsString, OsStr }
+
+// Use attributes inside the macro (rather than a single cfg(feature = ...)
+// outside the macro) to allow `doc_auto_cfg` to work properly.
+leaf! {
+    #[cfg(feature = "oxnet01")]
+    oxnet::IpNet,
+    #[cfg(feature = "oxnet01")]
+    oxnet::Ipv4Net,
+    #[cfg(feature = "oxnet01")]
+    oxnet::Ipv6Net
+}
+leaf! { #[cfg(feature = "uuid1")] uuid::Uuid }
 
 impl<T> Diffable for Option<T> {
     type Diff<'daft>
@@ -153,11 +166,12 @@ impl<T: ?Sized> Diffable for PhantomData<T> {
     }
 }
 
-impl<T> Diffable for TypedUuid<T>
+#[cfg(feature = "newtype-uuid1")]
+impl<T> Diffable for newtype_uuid::TypedUuid<T>
 where
-    T: TypedUuidKind + Diffable,
+    T: newtype_uuid::TypedUuidKind + Diffable,
 {
-    type Diff<'daft> = Leaf<'daft, TypedUuid<T>>;
+    type Diff<'daft> = Leaf<'daft, newtype_uuid::TypedUuid<T>>;
 
     fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
         Leaf { before: self, after: other }
@@ -320,7 +334,6 @@ impl<T: Diffable> Diffable for [T] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use uuid::Uuid;
 
     #[test]
     fn test_sets() {
@@ -383,8 +396,11 @@ mod tests {
         assert_eq!(changes, expected);
     }
 
+    #[cfg(feature = "uuid1")]
     #[test]
     fn example_struct() {
+        use uuid::Uuid;
+
         #[derive(Debug, Clone, PartialEq, Eq)]
         enum SledState {
             Active,
