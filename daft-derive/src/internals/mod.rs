@@ -280,7 +280,7 @@ impl DiffFields {
                     .named
                     .iter()
                     .filter(|f| !has_ignore_attr(f))
-                    .map(|f| Self::diff_field(f));
+                    .map(Self::diff_field);
                 Fields::Named(syn::FieldsNamed {
                     brace_token: fields.brace_token,
                     named: diff_fields.collect(),
@@ -291,7 +291,7 @@ impl DiffFields {
                     .unnamed
                     .iter()
                     .filter(|f| !has_ignore_attr(f))
-                    .map(|f| Self::diff_field(f));
+                    .map(Self::diff_field);
                 Fields::Unnamed(syn::FieldsUnnamed {
                     paren_token: fields.paren_token,
                     unnamed: diff_fields.collect(),
@@ -332,11 +332,7 @@ impl DiffFields {
         };
 
         // Only carry over #[non_exhaustive] attributes for now
-        f.attrs = f
-            .attrs
-            .into_iter()
-            .filter(|attr| attr.path().is_ident("non_exhaustive"))
-            .collect();
+        f.attrs.retain(|attr| attr.path().is_ident("non_exhaustive"));
 
         f
     }
