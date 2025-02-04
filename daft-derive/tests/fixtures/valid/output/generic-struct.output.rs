@@ -1,5 +1,11 @@
 #[derive(Debug, PartialEq, Eq)]
-struct StructWithGenericsDiff<'d, 'e, 'daft, T, U>
+struct StructWithGenericsDiff<
+    'd: 'daft,
+    'e: 'daft,
+    'daft,
+    T: Eq + Debug + 'daft,
+    U: Eq + Debug + 'daft,
+>
 where
     T: daft::Diffable<'d>,
     U: daft::Diffable<'e>,
