@@ -49,6 +49,6 @@ jobs:
       - uses: taiki-e/install-action@cargo-hack
       - uses: taiki-e/install-action@just
       - name: Build
-        run: just powerset build --workspace
+        run: just powerset build
       - name: Test
-        run: just powerset test --workspace
+        run: just powerset test
