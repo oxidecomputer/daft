@@ -1,24 +1,24 @@
 #[derive(Debug, PartialEq, Eq)]
 struct SDiff<'daft, 'a: 'daft, T: 'daft, U: 'daft>
 where
-    for<'x> T: Diffable<'x> + Debug + Eq + 'x,
-    U: Diffable<'a> + Debug + Eq,
+    T: Diffable + Debug + Eq + 'a,
+    U: Diffable + Debug + Eq + 'a,
 {
-    a: <BTreeMap<usize, T> as daft::Diffable<'daft>>::Diff,
-    b: <usize as daft::Diffable<'daft>>::Diff,
-    c: <U as daft::Diffable<'a>>::Diff,
+    a: <BTreeMap<usize, T> as daft::Diffable>::Diff<'daft>,
+    b: <usize as daft::Diffable>::Diff<'daft>,
+    c: <&'a U as daft::Diffable>::Diff<'daft>,
 }
-impl<'daft, 'a: 'daft, T: 'daft, U: 'daft> daft::Diffable<'daft> for S<'a, T, U>
+impl<'a, T, U> daft::Diffable for S<'a, T, U>
 where
-    for<'x> T: Diffable<'x> + Debug + Eq + 'x,
-    U: Diffable<'a> + Debug + Eq,
+    T: Diffable + Debug + Eq + 'a,
+    U: Diffable + Debug + Eq + 'a,
 {
-    type Diff = SDiff<'daft, 'a, T, U>;
-    fn diff(&'daft self, other: &'daft Self) -> Self::Diff {
+    type Diff<'daft> = SDiff<'daft, 'a, T, U> where Self: 'daft;
+    fn diff<'daft>(&'daft self, other: &'daft Self) -> SDiff<'daft, 'a, T, U> {
         Self::Diff {
             a: daft::Diffable::diff(&self.a, &other.a),
             b: daft::Diffable::diff(&self.b, &other.b),
-            c: daft::Diffable::diff(&*self.c, &*other.c),
+            c: daft::Diffable::diff(&self.c, &other.c),
         }
     }
 }

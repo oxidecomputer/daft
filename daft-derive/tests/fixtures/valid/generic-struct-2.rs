@@ -4,8 +4,8 @@ use std::{collections::BTreeMap, fmt::Debug};
 #[derive(Debug, Eq, PartialEq, Diff)]
 struct S<'a, T, U>
 where
-    for<'x> T: Diffable<'x> + Debug + Eq + 'x,
-    U: Diffable<'a> + Debug + Eq,
+    T: Diffable + Debug + Eq + 'a,
+    U: Diffable + Debug + Eq + 'a,
 {
     a: BTreeMap<usize, T>,
     b: usize,

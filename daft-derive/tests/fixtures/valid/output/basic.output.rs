@@ -1,11 +1,11 @@
 #[derive(Debug, PartialEq, Eq)]
 struct BasicDiff<'daft> {
-    a: <i32 as daft::Diffable<'daft>>::Diff,
-    b: <BTreeMap<Uuid, BTreeSet<usize>> as daft::Diffable<'daft>>::Diff,
+    a: <i32 as daft::Diffable>::Diff<'daft>,
+    b: <BTreeMap<Uuid, BTreeSet<usize>> as daft::Diffable>::Diff<'daft>,
 }
-impl<'daft> daft::Diffable<'daft> for Basic {
-    type Diff = BasicDiff<'daft>;
-    fn diff(&'daft self, other: &'daft Self) -> Self::Diff {
+impl daft::Diffable for Basic {
+    type Diff<'daft> = BasicDiff<'daft> where Self: 'daft;
+    fn diff<'daft>(&'daft self, other: &'daft Self) -> BasicDiff<'daft> {
         Self::Diff {
             a: daft::Diffable::diff(&self.a, &other.a),
             b: daft::Diffable::diff(&self.b, &other.b),

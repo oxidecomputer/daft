@@ -1,17 +1,13 @@
 #[derive(Debug, PartialEq, Eq)]
-struct StructWithDefaultTypeParamDiff<'daft, T: Eq + Debug + 'daft = ()>
-where
-    for<'x> T: Diffable<'x>,
-{
-    field: <T as daft::Diffable<'daft>>::Diff,
+struct StructWithDefaultTypeParamDiff<'daft, T: Eq + Debug + Diffable + 'daft = ()> {
+    field: <T as daft::Diffable>::Diff<'daft>,
 }
-impl<'daft, T: Eq + Debug + 'daft> daft::Diffable<'daft>
-for StructWithDefaultTypeParam<T>
-where
-    for<'x> T: Diffable<'x>,
-{
-    type Diff = StructWithDefaultTypeParamDiff<'daft, T>;
-    fn diff(&'daft self, other: &'daft Self) -> Self::Diff {
+impl<T: Eq + Debug + Diffable> daft::Diffable for StructWithDefaultTypeParam<T> {
+    type Diff<'daft> = StructWithDefaultTypeParamDiff<'daft, T> where Self: 'daft;
+    fn diff<'daft>(
+        &'daft self,
+        other: &'daft Self,
+    ) -> StructWithDefaultTypeParamDiff<'daft, T> {
         Self::Diff {
             field: daft::Diffable::diff(&self.field, &other.field),
         }
