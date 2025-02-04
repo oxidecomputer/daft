@@ -331,8 +331,9 @@ impl DiffFields {
             }
         };
 
-        // Only carry over #[non_exhaustive] attributes for now
-        f.attrs.retain(|attr| attr.path().is_ident("non_exhaustive"));
+        // Drop all attributes for now. We may want to carry some over in the
+        // future.
+        f.attrs = vec![];
 
         f
     }
