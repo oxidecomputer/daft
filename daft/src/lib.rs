@@ -93,7 +93,7 @@ impl<'a, T: Diffable> Diffable for &'a T {
     }
 }
 
-impl<'a, T: Diffable + ToOwned> Diffable for Cow<'a, T> {
+impl<T: Diffable + ToOwned> Diffable for Cow<'_, T> {
     type Diff<'daft>
         = <T as Diffable>::Diff<'daft>
     where
