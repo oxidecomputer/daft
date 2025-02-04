@@ -33,11 +33,19 @@ pub fn derive_diff(input: syn::DeriveInput) -> TokenStream {
             }
         }
 
-        Data::Union(_) => quote! {
-            // Implement all Unions as `Leaf`s
-            daft::leaf!(#name);
-        },
+        Data::Union(_) => {
+            let daft_crate = daft_crate();
+            quote! {
+                // Implement all Unions as `Leaf`s
+                #daft_crate::leaf!(#name);
+            }
+        }
     }
+}
+
+// TODO: allow the crate name to be passed in as a macro argument
+fn daft_crate() -> Path {
+    parse_quote! { ::daft }
 }
 
 fn daft_lifetime() -> LifetimeParam {
@@ -71,6 +79,7 @@ fn add_lifetime_to_generics(
 // Return a `Leaf` as a Diff
 fn make_leaf_for_enum(input: &DeriveInput) -> TokenStream {
     let ident = &input.ident;
+    let daft_crate = daft_crate();
     let daft_lt = daft_lifetime();
 
     // The "where Self: #daft_lt" condition appears to be enough to satisfy
@@ -79,12 +88,12 @@ fn make_leaf_for_enum(input: &DeriveInput) -> TokenStream {
     let (impl_gen, ty_gen, where_clause) = &input.generics.split_for_impl();
 
     quote! {
-        impl #impl_gen daft::Diffable for #ident #ty_gen #where_clause
+        impl #impl_gen #daft_crate::Diffable for #ident #ty_gen #where_clause
         {
-            type Diff<#daft_lt> = daft::Leaf<#daft_lt, Self> where Self: #daft_lt;
+            type Diff<#daft_lt> = #daft_crate::Leaf<#daft_lt, Self> where Self: #daft_lt;
 
             fn diff<#daft_lt>(&#daft_lt self, other: &#daft_lt Self) -> Self::Diff<#daft_lt> {
-                daft::Leaf {before: self, after: other}
+                #daft_crate::Leaf {before: self, after: other}
             }
         }
     }
@@ -212,6 +221,7 @@ fn make_diff_impl(input: &DeriveInput, s: &DataStruct) -> TokenStream {
     let name = parse_str::<Path>(&format!("{}Diff", input.ident)).unwrap();
     let diffs = generate_field_diffs(&s.fields);
 
+    let daft_crate = daft_crate();
     let daft_lt = daft_lifetime();
     let new_generics = add_lifetime_to_generics(input, &daft_lt);
 
@@ -219,7 +229,7 @@ fn make_diff_impl(input: &DeriveInput, s: &DataStruct) -> TokenStream {
     let (_, new_ty_gen, where_clause) = &new_generics.split_for_impl();
 
     quote! {
-        impl #impl_gen daft::Diffable for #ident #ty_gen
+        impl #impl_gen #daft_crate::Diffable for #ident #ty_gen
             #where_clause
         {
             type Diff<#daft_lt> = #name #new_ty_gen where Self: #daft_lt;
@@ -248,6 +258,7 @@ struct DiffFields {
 
 impl DiffFields {
     fn new(fields: &Fields, where_clause: Option<&WhereClause>) -> Self {
+        let daft_crate = daft_crate();
         // Always use the daft lifetime for the diff -- associations between the
         // daft lifetime and existing parameters (both lifetime and type
         // parameters) are created in `add_lifetime_to_generics`, e.g. `'a:
@@ -263,7 +274,7 @@ impl DiffFields {
                             let mut f = f.clone();
 
                             f.ty = parse_quote! {
-                                <#ty as daft::Diffable>::Diff<#lt>
+                                <#ty as #daft_crate::Diffable>::Diff<#lt>
                             };
 
                             f
@@ -282,7 +293,7 @@ impl DiffFields {
                             let mut f = f.clone();
 
                             f.ty = parse_quote! {
-                                <#ty as daft::Diffable>::Diff<#lt>
+                                <#ty as #daft_crate::Diffable>::Diff<#lt>
                             };
 
                             f
@@ -339,6 +350,7 @@ impl ToTokens for DiffFields {
 /// Generate a call to `diff` for each field of the original struct that isn't
 /// ignored.
 fn generate_field_diffs(fields: &Fields) -> TokenStream {
+    let daft_crate = daft_crate();
     let field_diffs =
         fields.iter().enumerate().filter(|(_, f)| !has_ignore_attr(f)).map(
             |(i, f)| {
@@ -351,7 +363,7 @@ fn generate_field_diffs(fields: &Fields) -> TokenStream {
                 };
 
                 quote! {
-                    #field_name: daft::Diffable::diff(
+                    #field_name: #daft_crate::Diffable::diff(
                         &self.#field_name,
                         &other.#field_name
                     )
