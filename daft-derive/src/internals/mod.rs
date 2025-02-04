@@ -41,7 +41,8 @@ pub fn derive_diff(input: syn::DeriveInput) -> TokenStream {
 }
 
 fn daft_lifetime() -> LifetimeParam {
-    LifetimeParam::new(Lifetime::new("'daft", Span::call_site()))
+    // Use an underscore to avoid clashing with a user-defined `'daft` lifetime.
+    LifetimeParam::new(Lifetime::new("'__daft", Span::call_site()))
 }
 
 // We need to add our lifetime parameter 'daft and ensure any other parameters
@@ -250,7 +251,7 @@ impl DiffFields {
         // Always use the daft lifetime for the diff -- associations between the
         // daft lifetime and existing parameters (both lifetime and type
         // parameters) are created in `add_lifetime_to_generics`, e.g. `'a:
-        // 'daft`, or `T: 'daft`.
+        // '__daft`, or `T: '__daft`.
         let lt = daft_lifetime();
 
         let fields = match fields {

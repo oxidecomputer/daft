@@ -1,22 +1,29 @@
-struct SDiff<'daft, 'a: 'daft, 'b: 'daft, 'c: 'a + 'daft, 'inv: 'daft, 'contra: 'daft> {
-    multi_ref: <&'a &'b Vec<u8> as daft::Diffable>::Diff<'daft>,
-    bound_ref: <&'c Vec<u8> as daft::Diffable>::Diff<'daft>,
-    inv_ref: <PhantomData<Cell<&'inv ()>> as daft::Diffable>::Diff<'daft>,
-    contra_ref: <PhantomData<fn(&'contra ())> as daft::Diffable>::Diff<'daft>,
+struct SDiff<
+    '__daft,
+    'a: '__daft,
+    'b: '__daft,
+    'daft: 'a + '__daft,
+    'inv: '__daft,
+    'contra: '__daft,
+> {
+    multi_ref: <&'a &'b Vec<u8> as daft::Diffable>::Diff<'__daft>,
+    bound_ref: <&'daft Vec<u8> as daft::Diffable>::Diff<'__daft>,
+    inv_ref: <PhantomData<Cell<&'inv ()>> as daft::Diffable>::Diff<'__daft>,
+    contra_ref: <PhantomData<fn(&'contra ())> as daft::Diffable>::Diff<'__daft>,
 }
 impl<
-    'daft,
-    'a: 'daft,
-    'b: 'daft,
-    'c: 'a + 'daft,
-    'inv: 'daft,
-    'contra: 'daft,
-> ::std::fmt::Debug for SDiff<'daft, 'a, 'b, 'c, 'inv, 'contra>
+    '__daft,
+    'a: '__daft,
+    'b: '__daft,
+    'daft: 'a + '__daft,
+    'inv: '__daft,
+    'contra: '__daft,
+> ::std::fmt::Debug for SDiff<'__daft, 'a, 'b, 'daft, 'inv, 'contra>
 where
-    <&'a &'b Vec<u8> as daft::Diffable>::Diff<'daft>: ::std::fmt::Debug,
-    <&'c Vec<u8> as daft::Diffable>::Diff<'daft>: ::std::fmt::Debug,
-    <PhantomData<Cell<&'inv ()>> as daft::Diffable>::Diff<'daft>: ::std::fmt::Debug,
-    <PhantomData<fn(&'contra ())> as daft::Diffable>::Diff<'daft>: ::std::fmt::Debug,
+    <&'a &'b Vec<u8> as daft::Diffable>::Diff<'__daft>: ::std::fmt::Debug,
+    <&'daft Vec<u8> as daft::Diffable>::Diff<'__daft>: ::std::fmt::Debug,
+    <PhantomData<Cell<&'inv ()>> as daft::Diffable>::Diff<'__daft>: ::std::fmt::Debug,
+    <PhantomData<fn(&'contra ())> as daft::Diffable>::Diff<'__daft>: ::std::fmt::Debug,
 {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         f.debug_struct(stringify!(SDiff))
@@ -28,18 +35,22 @@ where
     }
 }
 impl<
-    'daft,
-    'a: 'daft,
-    'b: 'daft,
-    'c: 'a + 'daft,
-    'inv: 'daft,
-    'contra: 'daft,
-> ::std::cmp::PartialEq for SDiff<'daft, 'a, 'b, 'c, 'inv, 'contra>
+    '__daft,
+    'a: '__daft,
+    'b: '__daft,
+    'daft: 'a + '__daft,
+    'inv: '__daft,
+    'contra: '__daft,
+> ::std::cmp::PartialEq for SDiff<'__daft, 'a, 'b, 'daft, 'inv, 'contra>
 where
-    <&'a &'b Vec<u8> as daft::Diffable>::Diff<'daft>: ::std::cmp::PartialEq,
-    <&'c Vec<u8> as daft::Diffable>::Diff<'daft>: ::std::cmp::PartialEq,
-    <PhantomData<Cell<&'inv ()>> as daft::Diffable>::Diff<'daft>: ::std::cmp::PartialEq,
-    <PhantomData<fn(&'contra ())> as daft::Diffable>::Diff<'daft>: ::std::cmp::PartialEq,
+    <&'a &'b Vec<u8> as daft::Diffable>::Diff<'__daft>: ::std::cmp::PartialEq,
+    <&'daft Vec<u8> as daft::Diffable>::Diff<'__daft>: ::std::cmp::PartialEq,
+    <PhantomData<
+        Cell<&'inv ()>,
+    > as daft::Diffable>::Diff<'__daft>: ::std::cmp::PartialEq,
+    <PhantomData<
+        fn(&'contra ()),
+    > as daft::Diffable>::Diff<'__daft>: ::std::cmp::PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         self.multi_ref == other.multi_ref && self.bound_ref == other.bound_ref
@@ -47,25 +58,28 @@ where
     }
 }
 impl<
-    'daft,
-    'a: 'daft,
-    'b: 'daft,
-    'c: 'a + 'daft,
-    'inv: 'daft,
-    'contra: 'daft,
-> ::std::cmp::Eq for SDiff<'daft, 'a, 'b, 'c, 'inv, 'contra>
+    '__daft,
+    'a: '__daft,
+    'b: '__daft,
+    'daft: 'a + '__daft,
+    'inv: '__daft,
+    'contra: '__daft,
+> ::std::cmp::Eq for SDiff<'__daft, 'a, 'b, 'daft, 'inv, 'contra>
 where
-    <&'a &'b Vec<u8> as daft::Diffable>::Diff<'daft>: ::std::cmp::Eq,
-    <&'c Vec<u8> as daft::Diffable>::Diff<'daft>: ::std::cmp::Eq,
-    <PhantomData<Cell<&'inv ()>> as daft::Diffable>::Diff<'daft>: ::std::cmp::Eq,
-    <PhantomData<fn(&'contra ())> as daft::Diffable>::Diff<'daft>: ::std::cmp::Eq,
+    <&'a &'b Vec<u8> as daft::Diffable>::Diff<'__daft>: ::std::cmp::Eq,
+    <&'daft Vec<u8> as daft::Diffable>::Diff<'__daft>: ::std::cmp::Eq,
+    <PhantomData<Cell<&'inv ()>> as daft::Diffable>::Diff<'__daft>: ::std::cmp::Eq,
+    <PhantomData<fn(&'contra ())> as daft::Diffable>::Diff<'__daft>: ::std::cmp::Eq,
 {}
-impl<'a, 'b, 'c: 'a, 'inv, 'contra> daft::Diffable for S<'a, 'b, 'c, 'inv, 'contra> {
-    type Diff<'daft> = SDiff<'daft, 'a, 'b, 'c, 'inv, 'contra> where Self: 'daft;
-    fn diff<'daft>(
-        &'daft self,
-        other: &'daft Self,
-    ) -> SDiff<'daft, 'a, 'b, 'c, 'inv, 'contra> {
+impl<'a, 'b, 'daft: 'a, 'inv, 'contra> daft::Diffable
+for S<'a, 'b, 'daft, 'inv, 'contra> {
+    type Diff<'__daft> = SDiff<'__daft, 'a, 'b, 'daft, 'inv, 'contra>
+    where
+        Self: '__daft;
+    fn diff<'__daft>(
+        &'__daft self,
+        other: &'__daft Self,
+    ) -> SDiff<'__daft, 'a, 'b, 'daft, 'inv, 'contra> {
         Self::Diff {
             multi_ref: daft::Diffable::diff(&self.multi_ref, &other.multi_ref),
             bound_ref: daft::Diffable::diff(&self.bound_ref, &other.bound_ref),

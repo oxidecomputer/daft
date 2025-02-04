@@ -1,10 +1,10 @@
-struct StructWithDefaultTypeParamDiff<'daft, T: Diffable + 'daft = ()> {
-    field: <T as daft::Diffable>::Diff<'daft>,
+struct StructWithDefaultTypeParamDiff<'__daft, T: Diffable + '__daft = ()> {
+    field: <T as daft::Diffable>::Diff<'__daft>,
 }
-impl<'daft, T: Diffable + 'daft> ::std::fmt::Debug
-for StructWithDefaultTypeParamDiff<'daft, T>
+impl<'__daft, T: Diffable + '__daft> ::std::fmt::Debug
+for StructWithDefaultTypeParamDiff<'__daft, T>
 where
-    <T as daft::Diffable>::Diff<'daft>: ::std::fmt::Debug,
+    <T as daft::Diffable>::Diff<'__daft>: ::std::fmt::Debug,
 {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         f.debug_struct(stringify!(StructWithDefaultTypeParamDiff))
@@ -12,26 +12,26 @@ where
             .finish()
     }
 }
-impl<'daft, T: Diffable + 'daft> ::std::cmp::PartialEq
-for StructWithDefaultTypeParamDiff<'daft, T>
+impl<'__daft, T: Diffable + '__daft> ::std::cmp::PartialEq
+for StructWithDefaultTypeParamDiff<'__daft, T>
 where
-    <T as daft::Diffable>::Diff<'daft>: ::std::cmp::PartialEq,
+    <T as daft::Diffable>::Diff<'__daft>: ::std::cmp::PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         self.field == other.field
     }
 }
-impl<'daft, T: Diffable + 'daft> ::std::cmp::Eq
-for StructWithDefaultTypeParamDiff<'daft, T>
+impl<'__daft, T: Diffable + '__daft> ::std::cmp::Eq
+for StructWithDefaultTypeParamDiff<'__daft, T>
 where
-    <T as daft::Diffable>::Diff<'daft>: ::std::cmp::Eq,
+    <T as daft::Diffable>::Diff<'__daft>: ::std::cmp::Eq,
 {}
 impl<T: Diffable> daft::Diffable for StructWithDefaultTypeParam<T> {
-    type Diff<'daft> = StructWithDefaultTypeParamDiff<'daft, T> where Self: 'daft;
-    fn diff<'daft>(
-        &'daft self,
-        other: &'daft Self,
-    ) -> StructWithDefaultTypeParamDiff<'daft, T> {
+    type Diff<'__daft> = StructWithDefaultTypeParamDiff<'__daft, T> where Self: '__daft;
+    fn diff<'__daft>(
+        &'__daft self,
+        other: &'__daft Self,
+    ) -> StructWithDefaultTypeParamDiff<'__daft, T> {
         Self::Diff {
             field: daft::Diffable::diff(&self.field, &other.field),
         }

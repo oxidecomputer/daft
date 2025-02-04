@@ -1,6 +1,6 @@
 impl<'a, T, U> daft::Diffable for EnumWithGenerics<'a, T, U> {
-    type Diff<'daft> = daft::Leaf<'daft, Self> where Self: 'daft;
-    fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
+    type Diff<'__daft> = daft::Leaf<'__daft, Self> where Self: '__daft;
+    fn diff<'__daft>(&'__daft self, other: &'__daft Self) -> Self::Diff<'__daft> {
         daft::Leaf {
             before: self,
             after: other,

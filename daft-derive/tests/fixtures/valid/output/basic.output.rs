@@ -1,11 +1,14 @@
-struct BasicDiff<'daft> {
-    a: <i32 as daft::Diffable>::Diff<'daft>,
-    b: <BTreeMap<Uuid, BTreeSet<usize>> as daft::Diffable>::Diff<'daft>,
+struct BasicDiff<'__daft> {
+    a: <i32 as daft::Diffable>::Diff<'__daft>,
+    b: <BTreeMap<Uuid, BTreeSet<usize>> as daft::Diffable>::Diff<'__daft>,
 }
-impl<'daft> ::std::fmt::Debug for BasicDiff<'daft>
+impl<'__daft> ::std::fmt::Debug for BasicDiff<'__daft>
 where
-    <i32 as daft::Diffable>::Diff<'daft>: ::std::fmt::Debug,
-    <BTreeMap<Uuid, BTreeSet<usize>> as daft::Diffable>::Diff<'daft>: ::std::fmt::Debug,
+    <i32 as daft::Diffable>::Diff<'__daft>: ::std::fmt::Debug,
+    <BTreeMap<
+        Uuid,
+        BTreeSet<usize>,
+    > as daft::Diffable>::Diff<'__daft>: ::std::fmt::Debug,
 {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         f.debug_struct(stringify!(BasicDiff))
@@ -14,26 +17,26 @@ where
             .finish()
     }
 }
-impl<'daft> ::std::cmp::PartialEq for BasicDiff<'daft>
+impl<'__daft> ::std::cmp::PartialEq for BasicDiff<'__daft>
 where
-    <i32 as daft::Diffable>::Diff<'daft>: ::std::cmp::PartialEq,
+    <i32 as daft::Diffable>::Diff<'__daft>: ::std::cmp::PartialEq,
     <BTreeMap<
         Uuid,
         BTreeSet<usize>,
-    > as daft::Diffable>::Diff<'daft>: ::std::cmp::PartialEq,
+    > as daft::Diffable>::Diff<'__daft>: ::std::cmp::PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         self.a == other.a && self.b == other.b
     }
 }
-impl<'daft> ::std::cmp::Eq for BasicDiff<'daft>
+impl<'__daft> ::std::cmp::Eq for BasicDiff<'__daft>
 where
-    <i32 as daft::Diffable>::Diff<'daft>: ::std::cmp::Eq,
-    <BTreeMap<Uuid, BTreeSet<usize>> as daft::Diffable>::Diff<'daft>: ::std::cmp::Eq,
+    <i32 as daft::Diffable>::Diff<'__daft>: ::std::cmp::Eq,
+    <BTreeMap<Uuid, BTreeSet<usize>> as daft::Diffable>::Diff<'__daft>: ::std::cmp::Eq,
 {}
 impl daft::Diffable for Basic {
-    type Diff<'daft> = BasicDiff<'daft> where Self: 'daft;
-    fn diff<'daft>(&'daft self, other: &'daft Self) -> BasicDiff<'daft> {
+    type Diff<'__daft> = BasicDiff<'__daft> where Self: '__daft;
+    fn diff<'__daft>(&'__daft self, other: &'__daft Self) -> BasicDiff<'__daft> {
         Self::Diff {
             a: daft::Diffable::diff(&self.a, &other.a),
             b: daft::Diffable::diff(&self.b, &other.b),
