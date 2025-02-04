@@ -2,6 +2,7 @@ pub use daft_derive::*;
 use newtype_uuid::{TypedUuid, TypedUuidKind};
 use paste::paste;
 use std::{
+    borrow::Cow,
     cell::RefCell,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fmt::Debug,
@@ -89,6 +90,17 @@ impl<'a, T: Diffable> Diffable for &'a T {
 
     fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
         (**self).diff(other)
+    }
+}
+
+impl<'a, T: Diffable + ToOwned> Diffable for Cow<'a, T> {
+    type Diff<'daft>
+        = <T as Diffable>::Diff<'daft>
+    where
+        Self: 'daft;
+
+    fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
+        self.as_ref().diff(other.as_ref())
     }
 }
 
