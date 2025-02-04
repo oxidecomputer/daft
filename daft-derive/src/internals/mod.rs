@@ -331,6 +331,13 @@ impl DiffFields {
             }
         };
 
+        // Only carry over #[non_exhaustive] attributes for now
+        f.attrs = f
+            .attrs
+            .into_iter()
+            .filter(|attr| attr.path().is_ident("non_exhaustive"))
+            .collect();
+
         f
     }
 

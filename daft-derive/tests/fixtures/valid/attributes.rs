@@ -1,8 +1,8 @@
-use daft::Diff;
+use daft::Diffable;
 use std::collections::{BTreeMap, BTreeSet};
 use uuid::Uuid;
 
-#[derive(Debug, Eq, PartialEq, Diff)]
+#[derive(Debug, Eq, PartialEq, Diffable)]
 struct WithAttrs {
     a: i32,
     b: BTreeMap<Uuid, BTreeSet<usize>>,
@@ -15,7 +15,7 @@ struct WithAttrs {
     f: usize,
 }
 
-#[derive(Debug, Eq, PartialEq, Diff)]
+#[derive(Debug, Eq, PartialEq, Diffable)]
 struct Lazy {
     x: usize,
     y: usize,
