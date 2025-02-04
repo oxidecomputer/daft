@@ -1,5 +1,5 @@
 #[derive(Debug, PartialEq, Eq)]
-struct StructWithDefaultTypeParamDiff<'daft, T>
+struct StructWithDefaultTypeParamDiff<'daft, T: Eq + Debug + 'daft = ()>
 where
     for<'x> T: Diffable<'x>,
 {

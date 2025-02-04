@@ -1,5 +1,5 @@
 #[derive(Debug, PartialEq, Eq)]
-struct SDiff<'a, 'daft, T, U>
+struct SDiff<'a: 'daft, 'daft, T: 'daft, U: 'daft>
 where
     for<'x> T: Diffable<'x> + Debug + Eq + 'x,
     U: Diffable<'a> + Debug + Eq,
