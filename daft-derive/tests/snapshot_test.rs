@@ -1,6 +1,6 @@
 use datatest_stable::Utf8Path;
 use quote::ToTokens;
-use syn::DeriveInput;
+use syn::{parse_quote, DeriveInput};
 
 // We need access to the proc-macro's internals for this test. An alternative
 // would be to make this a unit test, but the integration test harness gives us
@@ -21,24 +21,25 @@ fn daft_snapshot(
 ) -> datatest_stable::Result<()> {
     let data = syn::parse_str::<syn::File>(&input)?;
 
-    // Look for the first struct or enum in the input -- give that to the derive
-    // macro.
-    let data = data
-        .items
-        .iter()
-        .find_map(|item| match item {
-            syn::Item::Struct(item) => Some(item.to_token_stream()),
-            syn::Item::Enum(item) => Some(item.to_token_stream()),
-            _ => None,
-        })
-        .expect("no struct or enum found in input");
+    // Look for structs and enums in the input -- give them to the derive macro.
+    let items = data.items.iter().filter_map(|item| match item {
+        syn::Item::Struct(item) => Some(item.to_token_stream()),
+        syn::Item::Enum(item) => Some(item.to_token_stream()),
+        _ => None,
+    });
 
-    // Turn the data into a `syn::DeriveInput` and run the derive macro on it.
-    let data = syn::parse2::<DeriveInput>(data)?;
-    let output = internals::derive_diff(data);
+    // Turn each item into a `syn::DeriveInput` and run the derive macro on it.
+    let output = items.enumerate().map(|(i, item)| {
+        let data = syn::parse2::<DeriveInput>(item).unwrap_or_else(|err| {
+            panic!("failed to parse item {}: {}", i, err);
+        });
+        internals::derive_diffable(data)
+    });
 
     // Read the output as a `syn::File`.
-    let file = syn::parse2::<syn::File>(output)?;
+    let file = parse_quote! {
+        #(#output)*
+    };
 
     // Format the output.
     let output = prettyplease::unparse(&file);
