@@ -3,6 +3,7 @@
 pub use daft_derive::*;
 use paste::paste;
 use std::{
+    borrow::Cow,
     cell::RefCell,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     ffi::{OsStr, OsString},
@@ -105,6 +106,17 @@ impl<'a, T: Diffable + ?Sized> Diffable for &'a T {
 
     fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
         (**self).diff(other)
+    }
+}
+
+impl<T: Diffable + ToOwned + ?Sized> Diffable for Cow<'_, T> {
+    type Diff<'daft>
+        = <T as Diffable>::Diff<'daft>
+    where
+        Self: 'daft;
+
+    fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
+        self.as_ref().diff(other.as_ref())
     }
 }
 
