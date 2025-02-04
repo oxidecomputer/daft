@@ -1,7 +1,7 @@
-use daft::Diff;
+use daft::Diffable;
 use std::{cell::Cell, fmt::Debug, marker::PhantomData};
 
-#[derive(Debug, Eq, PartialEq, Diff)]
+#[derive(Debug, Eq, PartialEq, Diffable)]
 // 'daft is named as such to test potential clashes with generated code.
 struct S<'a, 'b, 'daft: 'a, 'inv, 'contra> {
     // Multiple lifetime params.

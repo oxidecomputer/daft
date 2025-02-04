@@ -10,7 +10,7 @@ use syn::{
     WhereClause, WherePredicate,
 };
 
-pub fn derive_diff(input: syn::DeriveInput) -> TokenStream {
+pub fn derive_diffable(input: syn::DeriveInput) -> TokenStream {
     let name = &input.ident;
 
     match &input.data {

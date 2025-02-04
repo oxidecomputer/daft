@@ -1,24 +1,23 @@
 use daft::{Diffable, Leaf};
-use daft_derive::Diff;
 use std::{
     collections::{BTreeMap, BTreeSet},
     fmt::Debug,
 };
 use uuid::Uuid;
 
-#[derive(Debug, Eq, PartialEq, Diff)]
+#[derive(Debug, Eq, PartialEq, Diffable)]
 enum SomeEnum {
     A,
     B,
     C(u32),
 }
 
-#[derive(Debug, Eq, PartialEq, Diff)]
+#[derive(Debug, Eq, PartialEq, Diffable)]
 struct SomeStruct {
     a: i32,
 }
 
-#[derive(Debug, Eq, PartialEq, Diff)]
+#[derive(Debug, Eq, PartialEq, Diffable)]
 struct Large {
     a: i32,
     b: SomeEnum,
@@ -26,7 +25,7 @@ struct Large {
     d: SomeStruct,
 }
 
-#[derive(Debug, Eq, PartialEq, Diff)]
+#[derive(Debug, Eq, PartialEq, Diffable)]
 struct TupleStruct(String);
 
 #[test]
@@ -86,7 +85,7 @@ fn test_basic() {
 
 #[test]
 fn test_enum_with_generics() {
-    #[derive(Debug, Eq, PartialEq, Diff)]
+    #[derive(Debug, Eq, PartialEq, Diffable)]
     enum EnumWithGenerics<'a, T, U> {
         A(T),
         B(&'a U),
@@ -102,7 +101,7 @@ fn test_enum_with_generics() {
 
 #[test]
 fn test_struct_with_generics() {
-    #[derive(Debug, Eq, PartialEq, Diff)]
+    #[derive(Debug, Eq, PartialEq, Diffable)]
     struct StructWithGenerics<'d, 'e, T, U>
     where
         T: Diffable + 'd,
@@ -122,7 +121,7 @@ fn test_struct_with_generics() {
     assert_eq!(diff.d, Leaf { before: &6, after: &7 });
     println!("{diff:?}");
 
-    #[derive(Debug, Eq, PartialEq, Diff)]
+    #[derive(Debug, Eq, PartialEq, Diffable)]
     struct S<'a, T, U>
     where
         T: Diffable + Eq + 'a,

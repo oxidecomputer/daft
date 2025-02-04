@@ -33,7 +33,7 @@ fn daft_snapshot(
         let data = syn::parse2::<DeriveInput>(item).unwrap_or_else(|err| {
             panic!("failed to parse item {}: {}", i, err);
         });
-        internals::derive_diff(data)
+        internals::derive_diffable(data)
     });
 
     // Read the output as a `syn::File`.

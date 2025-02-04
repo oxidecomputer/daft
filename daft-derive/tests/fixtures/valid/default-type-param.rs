@@ -1,7 +1,7 @@
-use daft::{Diff, Diffable};
+use daft::Diffable;
 use std::fmt::Debug;
 
-#[derive(Debug, Eq, PartialEq, Diff)]
+#[derive(Debug, Eq, PartialEq, Diffable)]
 struct StructWithDefaultTypeParam<T: Diffable = ()> {
     field: T,
 }

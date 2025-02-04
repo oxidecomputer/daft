@@ -1,7 +1,7 @@
-use daft::{Diff, Diffable};
+use daft::Diffable;
 use std::collections::BTreeMap;
 
-#[derive(Debug, Eq, PartialEq, Diff)]
+#[derive(Debug, Eq, PartialEq, Diffable)]
 struct S<'a, T, U>
 where
     T: Diffable + Eq + 'a,

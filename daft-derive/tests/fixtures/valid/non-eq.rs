@@ -1,12 +1,12 @@
-use daft::{Diff, Diffable, Leaf};
+use daft::{Diffable, Leaf};
 
-#[derive(Diff)]
+#[derive(Diffable)]
 struct Inner {
     a: i32,
     b: i32,
 }
 
-#[derive(Diff)]
+#[derive(Diffable)]
 struct Outer {
     inner: Inner,
     c: i32,

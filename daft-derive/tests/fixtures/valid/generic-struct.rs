@@ -1,6 +1,6 @@
-use daft::Diff;
+use daft::Diffable;
 
-#[derive(Debug, Eq, PartialEq, Diff)]
+#[derive(Debug, Eq, PartialEq, Diffable)]
 struct StructWithGenerics<'d, 'e, T, U>
 where
     T: daft::Diffable + 'd + ?Sized,

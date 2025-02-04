@@ -1,7 +1,7 @@
-use daft::Diff;
+use daft::Diffable;
 use std::fmt::Debug;
 
-#[derive(Debug, Eq, PartialEq, Diff)]
+#[derive(Debug, Eq, PartialEq, Diffable)]
 enum EnumWithGenerics<'a, T, U> {
     A(T),
     B(&'a U),
