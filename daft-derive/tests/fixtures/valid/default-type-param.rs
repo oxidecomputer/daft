@@ -2,9 +2,8 @@ use daft::Diffable;
 use std::fmt::Debug;
 
 #[derive(Debug, Eq, PartialEq, Diffable)]
-enum EnumWithGenerics<'a, T, U> {
-    A(T),
-    B(&'a U),
+struct StructWithDefaultTypeParam<T: Diffable = ()> {
+    field: T,
 }
 
 fn main() {}
