@@ -10,8 +10,9 @@ edition = "2021"
 repository = "https://github.com/oxidecomputer/daft"
 rust-version = "1.81.0"
 
-[workspace.lints]
-
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(doc_cfg)"] }
+ 
 [workspace.dependencies]
 datatest-stable = "0.3.2"
 daft-derive = { path = "daft-derive" }

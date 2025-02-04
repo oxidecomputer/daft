@@ -18,15 +18,14 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2.7.3
+      - uses: taiki-e/install-action@cargo-hack
+      - uses: taiki-e/install-action@just
       - name: Lint (clippy)
-        run: cargo clippy --all-features --all-targets
+        run: just powerset clippy --all-targets
       - name: Lint (rustfmt)
         run: cargo xfmt --check
       - name: Run rustdoc
-        env:
-          RUSTC_BOOTSTRAP: 1 # for feature(doc_cfg)
-          RUSTDOCFLAGS: -Dwarnings --cfg doc_cfg
-        run: cargo doc --all-features --workspace
+        run: just rustdoc
       - name: Check for differences
         run: git diff --exit-code
 
@@ -48,7 +47,8 @@ jobs:
           toolchain: ${{ matrix.rust-version }}
       - uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2
       - uses: taiki-e/install-action@cargo-hack
+      - uses: taiki-e/install-action@just
       - name: Build
-        run: cargo build --all-features --workspace
+        run: just powerset build
       - name: Test
-        run: cargo test --all-features --workspace
+        run: just powerset test
