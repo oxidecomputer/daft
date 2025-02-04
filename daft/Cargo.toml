@@ -10,7 +10,12 @@ workspace = true
 
 [dependencies]
 daft-derive = { path = "../daft-derive" }
-newtype-uuid.workspace = true
-oxnet.workspace = true
+newtype-uuid = { workspace = true, optional = true }
+oxnet = { workspace = true, optional = true }
 paste.workspace = true
-uuid = { workspace = true, features = ["v4"] }
+uuid = { workspace = true, optional = true, features = ["v4"] }
+
+[features]
+newtype-uuid1 = ["dep:newtype-uuid"]
+oxnet01 = ["dep:oxnet"]
+uuid1 = ["dep:uuid"]

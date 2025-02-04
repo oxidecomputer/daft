@@ -3,13 +3,14 @@
 //! This is imported both by this crate's lib.rs and by tests/snapshot_test.rs.
 
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::{
-    parse_str, Data, DataStruct, DeriveInput, Fields, GenericParam, Generics,
-    Index, Lifetime, LifetimeParam, Path, Type,
+    parse_quote, parse_str, Data, DataStruct, DeriveInput, Expr, Fields,
+    GenericParam, Generics, Index, Lifetime, LifetimeParam, Path, Token,
+    WhereClause, WherePredicate,
 };
 
-pub fn derive_diff(input: syn::DeriveInput) -> TokenStream {
+pub fn derive_diffable(input: syn::DeriveInput) -> TokenStream {
     let name = &input.ident;
 
     match &input.data {
@@ -32,15 +33,24 @@ pub fn derive_diff(input: syn::DeriveInput) -> TokenStream {
             }
         }
 
-        Data::Union(_) => quote! {
-            // Implement all Unions as `Leaf`s
-            daft::leaf!(#name);
-        },
+        Data::Union(_) => {
+            let daft_crate = daft_crate();
+            quote! {
+                // Implement all Unions as `Leaf`s
+                #daft_crate::leaf!(#name);
+            }
+        }
     }
 }
 
+// TODO: allow the crate name to be passed in as a macro argument
+fn daft_crate() -> Path {
+    parse_quote! { ::daft }
+}
+
 fn daft_lifetime() -> LifetimeParam {
-    LifetimeParam::new(Lifetime::new("'daft", Span::call_site()))
+    // Use an underscore to avoid clashing with a user-defined `'daft` lifetime.
+    LifetimeParam::new(Lifetime::new("'__daft", Span::call_site()))
 }
 
 // We need to add our lifetime parameter 'daft and ensure any other parameters
@@ -56,7 +66,11 @@ fn add_lifetime_to_generics(
     new_generics.type_params_mut().for_each(|lt| {
         lt.bounds.push(syn::TypeParamBound::Lifetime(daft_lt.lifetime.clone()))
     });
-    new_generics.params.push(GenericParam::from(daft_lt.clone()));
+
+    // Add the 'daft lifetime to the beginning of the parameter list -- the
+    // exact order is not hugely important, but doing this makes tests simpler
+    // (they can just check the first element).
+    new_generics.params.insert(0, GenericParam::from(daft_lt.clone()));
     new_generics
 }
 
@@ -65,22 +79,21 @@ fn add_lifetime_to_generics(
 // Return a `Leaf` as a Diff
 fn make_leaf_for_enum(input: &DeriveInput) -> TokenStream {
     let ident = &input.ident;
+    let daft_crate = daft_crate();
     let daft_lt = daft_lifetime();
-    let new_generics = add_lifetime_to_generics(input, &daft_lt);
 
-    // We use type generics, `ty_gen`, from our input type, and `impl_gen` and
-    // `where_clause` from `new_generics` that includes our new lifetime and
-    // bounds.
-    let (_, ty_gen, _) = &input.generics.split_for_impl();
-    let (impl_gen, _, where_clause) = &new_generics.split_for_impl();
+    // The "where Self: #daft_lt" condition appears to be enough to satisfy
+    // Rust's borrow checker, so we don't need to add further constraints via
+    // `add_lifetime_to_generics`.
+    let (impl_gen, ty_gen, where_clause) = &input.generics.split_for_impl();
 
     quote! {
-        impl #impl_gen daft::Diffable<#daft_lt> for #ident #ty_gen #where_clause
+        impl #impl_gen #daft_crate::Diffable for #ident #ty_gen #where_clause
         {
-            type Diff = daft::Leaf<#daft_lt, Self>;
+            type Diff<#daft_lt> = #daft_crate::Leaf<#daft_lt, Self> where Self: #daft_lt;
 
-            fn diff(&#daft_lt self, other: &#daft_lt Self) -> Self::Diff {
-                daft::Leaf {before: self, after: other}
+            fn diff<#daft_lt>(&#daft_lt self, other: &#daft_lt Self) -> Self::Diff<#daft_lt> {
+                #daft_crate::Leaf {before: self, after: other}
             }
         }
     }
@@ -93,30 +106,125 @@ fn make_diff_struct(input: &DeriveInput, s: &DataStruct) -> TokenStream {
 
     // The name of the generated type
     let name = parse_str::<Path>(&format!("{}Diff", input.ident)).unwrap();
-    let fields = generate_fields(&s.fields);
+
+    // Copy over the non-exhaustive attribute from the original struct. (Do we
+    // need to copy over other attributes?)
+    let non_exhaustive =
+        input.attrs.iter().find(|attr| attr.path().is_ident("non_exhaustive"));
 
     let daft_lt = daft_lifetime();
 
     // We are creating a new type, so use only generics with our new lifetime
-    // and bounds
+    // and bounds.
+    //
+    // Most of the other generics users use `split_for_impl`, but that is geared
+    // specifically for trait implementations, not type definitions. For type
+    // definitions, we use the original `Generics`.
+    //
+    // The `ToTokens` implementation for `Generics` does not print the `where`
+    // clause, so we also include that separately.
     let new_generics = add_lifetime_to_generics(input, &daft_lt);
-    let (_, ty_gen, where_clause) = &new_generics.split_for_impl();
+    let where_clause = &new_generics.where_clause;
 
-    match &s.fields {
+    let diff_fields = DiffFields::new(&s.fields, where_clause.as_ref());
+
+    let struct_def = match &s.fields {
         Fields::Named(_) => quote! {
-            #[derive(Debug, PartialEq, Eq)]
-            #vis struct #name #ty_gen #where_clause {
-                #fields
-            }
+            #non_exhaustive
+            #vis struct #name #new_generics #where_clause #diff_fields
+
         },
         Fields::Unnamed(_) => quote! {
-            #[derive(Debug, PartialEq, Eq)]
-            #vis struct #name #ty_gen (#fields) #where_clause;
+            #non_exhaustive
+            #vis struct #name #new_generics #diff_fields #where_clause;
         },
         Fields::Unit => quote! {
             // This is kinda silly
-            #vis struct #name #ty_gen {} #where_clause
+            #non_exhaustive
+            #vis struct #name #new_generics {} #where_clause
         },
+    };
+
+    // Generate PartialEq, Eq, and Debug implementations for the diff struct. We
+    // can't rely on `#[derive] because we want to put bounds on the
+    // Diffable::Diff types, not on the original types.
+    let (impl_gen, ty_gen, _) = &new_generics.split_for_impl();
+
+    let debug_impl = {
+        let where_clause = diff_fields
+            .where_clause_with_trait_bound(&parse_quote! { ::std::fmt::Debug });
+        let members = diff_fields.fields.members();
+
+        let finish = if non_exhaustive.is_some() {
+            quote! { .finish_non_exhaustive() }
+        } else {
+            quote! { .finish() }
+        };
+
+        let debug_body = match &s.fields {
+            Fields::Named(_) => {
+                quote! {
+                    f.debug_struct(stringify!(#name))
+                    #(
+                        .field(stringify!(#members), &self.#members)
+                    )*
+                    #finish
+                }
+            }
+            Fields::Unnamed(_) => quote! {
+                f.debug_tuple(stringify!(#name))
+                #(
+                    .field(&self.#members)
+                )*
+                #finish
+            },
+            Fields::Unit => quote! {
+                f.debug_struct(stringify!(#name))
+                    #finish
+            },
+        };
+        quote! {
+            impl #impl_gen ::std::fmt::Debug for #name #ty_gen #where_clause {
+                fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                    #debug_body
+                }
+            }
+        }
+    };
+
+    let partial_eq_impl = {
+        let where_clause = diff_fields.where_clause_with_trait_bound(
+            &parse_quote! { ::std::cmp::PartialEq },
+        );
+        let members = diff_fields.fields.members();
+
+        let partial_eq_body: Expr = parse_quote! {
+            #(self.#members == other.#members) && *
+        };
+
+        quote! {
+            impl #impl_gen ::std::cmp::PartialEq for #name #ty_gen #where_clause {
+                fn eq(&self, other: &Self) -> bool {
+                    #partial_eq_body
+                }
+            }
+        }
+    };
+
+    let eq_impl = {
+        let where_clause = diff_fields
+            .where_clause_with_trait_bound(&parse_quote! { ::std::cmp::Eq });
+
+        quote! {
+            impl #impl_gen ::std::cmp::Eq for #name #ty_gen #where_clause {}
+        }
+    };
+
+    quote! {
+        #struct_def
+        #debug_impl
+        #partial_eq_impl
+        #eq_impl
     }
 }
 
@@ -129,19 +237,20 @@ fn make_diff_impl(input: &DeriveInput, s: &DataStruct) -> TokenStream {
     let name = parse_str::<Path>(&format!("{}Diff", input.ident)).unwrap();
     let diffs = generate_field_diffs(&s.fields);
 
+    let daft_crate = daft_crate();
     let daft_lt = daft_lifetime();
     let new_generics = add_lifetime_to_generics(input, &daft_lt);
 
-    let (_, ty_gen, _) = &input.generics.split_for_impl();
-    let (impl_gen, new_ty_gen, where_clause) = &new_generics.split_for_impl();
+    let (impl_gen, ty_gen, _) = &input.generics.split_for_impl();
+    let (_, new_ty_gen, where_clause) = &new_generics.split_for_impl();
 
     quote! {
-        impl #impl_gen daft::Diffable<#daft_lt> for #ident #ty_gen
+        impl #impl_gen #daft_crate::Diffable for #ident #ty_gen
             #where_clause
         {
-            type Diff = #name #new_ty_gen;
+            type Diff<#daft_lt> = #name #new_ty_gen where Self: #daft_lt;
 
-            fn diff(&#daft_lt self, other: &#daft_lt Self) -> Self::Diff {
+            fn diff<#daft_lt>(&#daft_lt self, other: &#daft_lt Self) -> #name #new_ty_gen {
                 Self::Diff {
                     #diffs
                 }
@@ -150,43 +259,109 @@ fn make_diff_impl(input: &DeriveInput, s: &DataStruct) -> TokenStream {
     }
 }
 
-// Generate fields for the generated struct
-fn generate_fields(fields: &Fields) -> TokenStream {
-    let fields = fields.iter().filter(|f| !has_ignore_attr(f)).map(|f| {
-        let vis = &f.vis;
-        let (lifetime, ty) = match &f.ty {
-            Type::Reference(type_ref) => (&type_ref.lifetime, &*type_ref.elem),
-            _ => (&None, &f.ty),
-        };
-        // Chose the right lifetime for the parameter
-        // If there is already a lifetime, use that. Otherwise use 'daft.
-        let lt = if lifetime.is_some() {
-            LifetimeParam::new(lifetime.as_ref().unwrap().clone())
-        } else {
-            daft_lifetime()
+struct DiffFields {
+    fields: Fields,
+    // The base where clause for the diff struct.
+    where_clause: WhereClause,
+}
+
+impl DiffFields {
+    fn new(fields: &Fields, where_clause: Option<&WhereClause>) -> Self {
+        let daft_crate = daft_crate();
+        // Always use the daft lifetime for the diff -- associations between
+        // that and existing parameters are handled in
+        // `add_lifetime_to_generics`.
+        let lt = daft_lifetime();
+
+        let fields = match fields {
+            Fields::Named(fields) => {
+                let diff_fields =
+                    fields.named.iter().filter(|f| !has_ignore_attr(f)).map(
+                        |f| {
+                            let ty = &f.ty;
+                            let mut f = f.clone();
+
+                            f.ty = parse_quote! {
+                                <#ty as #daft_crate::Diffable>::Diff<#lt>
+                            };
+
+                            f
+                        },
+                    );
+                Fields::Named(syn::FieldsNamed {
+                    brace_token: fields.brace_token,
+                    named: diff_fields.collect(),
+                })
+            }
+            Fields::Unnamed(fields) => {
+                let diff_fields =
+                    fields.unnamed.iter().filter(|f| !has_ignore_attr(f)).map(
+                        |f| {
+                            let ty = &f.ty;
+                            let mut f = f.clone();
+
+                            f.ty = parse_quote! {
+                                <#ty as #daft_crate::Diffable>::Diff<#lt>
+                            };
+
+                            f
+                        },
+                    );
+                Fields::Unnamed(syn::FieldsUnnamed {
+                    paren_token: fields.paren_token,
+                    unnamed: diff_fields.collect(),
+                })
+            }
+            Fields::Unit => Fields::Unit,
         };
 
-        match &f.ident {
-            Some(ident) => quote! {
-                #vis #ident: <#ty as daft::Diffable<#lt>>::Diff
-            },
-            None => quote! {
-                #vis <#ty as daft::Diffable<#lt>>::Diff
-            },
-        }
-    });
-    quote! { #(#fields),* }
+        // Initialize an empty where clause if none was provided.
+        let where_clause =
+            where_clause.cloned().unwrap_or_else(|| WhereClause {
+                where_token: <Token![where]>::default(),
+                predicates: Default::default(),
+            });
+
+        Self { fields, where_clause }
+    }
+
+    /// Returns an iterator over field types.
+    fn types(&self) -> impl Iterator<Item = &syn::Type> {
+        self.fields.iter().map(|f| &f.ty)
+    }
+
+    /// Returns an expanded where clause where the fields have had a trait bound
+    /// applied to them.
+    fn where_clause_with_trait_bound(
+        &self,
+        trait_bound: &syn::TraitBound,
+    ) -> WhereClause {
+        let predicates = self.types().map(|ty| -> WherePredicate {
+            parse_quote! {
+                #ty: #trait_bound
+            }
+        });
+
+        let mut where_clause = self.where_clause.clone();
+        where_clause.predicates.extend(predicates);
+
+        where_clause
+    }
+}
+
+impl ToTokens for DiffFields {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.fields.to_tokens(tokens);
+    }
 }
 
 /// Generate a call to `diff` for each field of the original struct that isn't
 /// ignored.
 fn generate_field_diffs(fields: &Fields) -> TokenStream {
+    let daft_crate = daft_crate();
     let field_diffs =
         fields.iter().enumerate().filter(|(_, f)| !has_ignore_attr(f)).map(
             |(i, f)| {
-                // We want to diff our types, not references to them
-                let deref = matches!(f.ty, Type::Reference(_));
-
                 let field_name = match &f.ident {
                     Some(ident) => quote! { #ident },
                     None => {
@@ -194,20 +369,12 @@ fn generate_field_diffs(fields: &Fields) -> TokenStream {
                         quote! { #ident }
                     }
                 };
-                if deref {
-                    quote! {
-                        #field_name: daft::Diffable::diff(
-                            &*self.#field_name,
-                            &*other.#field_name
-                        )
-                    }
-                } else {
-                    quote! {
-                        #field_name: daft::Diffable::diff(
-                            &self.#field_name,
-                            &other.#field_name
-                        )
-                    }
+
+                quote! {
+                    #field_name: #daft_crate::Diffable::diff(
+                        &self.#field_name,
+                        &other.#field_name
+                    )
                 }
             },
         );
