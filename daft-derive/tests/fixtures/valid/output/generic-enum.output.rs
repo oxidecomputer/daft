@@ -1,6 +1,6 @@
 impl<
-    'a: 'daft,
     'daft,
+    'a: 'daft,
     T: Eq + Debug + 'daft,
     U: Eq + Debug + 'daft,
 > daft::Diffable<'daft> for EnumWithGenerics<'a, T, U> {

@@ -56,7 +56,11 @@ fn add_lifetime_to_generics(
     new_generics.type_params_mut().for_each(|lt| {
         lt.bounds.push(syn::TypeParamBound::Lifetime(daft_lt.lifetime.clone()))
     });
-    new_generics.params.push(GenericParam::from(daft_lt.clone()));
+
+    // Add the 'daft lifetime to the beginning of the parameter list -- the
+    // exact order is not hugely important, but doing this makes tests simpler
+    // (they can just check the first element).
+    new_generics.params.insert(0, GenericParam::from(daft_lt.clone()));
     new_generics
 }
 
@@ -98,24 +102,31 @@ fn make_diff_struct(input: &DeriveInput, s: &DataStruct) -> TokenStream {
     let daft_lt = daft_lifetime();
 
     // We are creating a new type, so use only generics with our new lifetime
-    // and bounds
+    // and bounds.
+    //
+    // Most of the other generics users use `split_for_impl`, but that is geared
+    // specifically for trait implementations, not type definitions. For type
+    // definitions, we use the original `Generics`.
+    //
+    // The `ToTokens` implementation for `Generics` does not print the `where`
+    // clause, so we also include that separately.
     let new_generics = add_lifetime_to_generics(input, &daft_lt);
-    let (_, ty_gen, where_clause) = &new_generics.split_for_impl();
+    let where_clause = &new_generics.where_clause;
 
     match &s.fields {
         Fields::Named(_) => quote! {
             #[derive(Debug, PartialEq, Eq)]
-            #vis struct #name #ty_gen #where_clause {
+            #vis struct #name #new_generics #where_clause {
                 #fields
             }
         },
         Fields::Unnamed(_) => quote! {
             #[derive(Debug, PartialEq, Eq)]
-            #vis struct #name #ty_gen (#fields) #where_clause;
+            #vis struct #name #new_generics (#fields) #where_clause;
         },
         Fields::Unit => quote! {
             // This is kinda silly
-            #vis struct #name #ty_gen {} #where_clause
+            #vis struct #name #new_generics {} #where_clause
         },
     }
 }
