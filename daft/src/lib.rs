@@ -5,10 +5,12 @@ use std::{
     borrow::Cow,
     cell::RefCell,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    ffi::{OsStr, OsString},
     fmt::Debug,
     hash::Hash,
     marker::PhantomData,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
+    path::{Path, PathBuf},
     rc::Rc,
     sync::Arc,
 };
@@ -22,7 +24,7 @@ pub trait Diffable: PartialEq + Eq {
 
 /// A primitive change
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Leaf<'daft, T: Eq + Debug> {
+pub struct Leaf<'daft, T: Eq + Debug + ?Sized> {
     pub before: &'daft T,
     pub after: &'daft T,
 }
@@ -48,13 +50,14 @@ macro_rules! leaf{
 leaf! { i64, i32, i16, i8, u64, u32, u16, u8, char, bool, isize, usize, (), uuid::Uuid}
 leaf! { IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6 }
 leaf! { oxnet::IpNet, oxnet::Ipv4Net, oxnet::Ipv6Net }
-leaf! { String }
+leaf! { String, str, PathBuf, Path, OsString, OsStr }
 
 impl<T: Eq + Debug> Diffable for Option<T> {
     type Diff<'daft>
         = Leaf<'daft, Option<T>>
     where
         T: 'daft;
+
     fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
         Leaf { before: self, after: other }
     }
@@ -71,7 +74,7 @@ impl<T: Eq + Debug, U: Eq + Debug> Diffable for Result<T, U> {
     }
 }
 
-impl<T: Diffable> Diffable for Box<T> {
+impl<T: Diffable + ?Sized> Diffable for Box<T> {
     type Diff<'daft>
         = <T as Diffable>::Diff<'daft>
     where
@@ -82,7 +85,7 @@ impl<T: Diffable> Diffable for Box<T> {
     }
 }
 
-impl<'a, T: Diffable> Diffable for &'a T {
+impl<'a, T: Diffable + ?Sized> Diffable for &'a T {
     type Diff<'daft>
         = <T as Diffable>::Diff<'daft>
     where
@@ -93,7 +96,7 @@ impl<'a, T: Diffable> Diffable for &'a T {
     }
 }
 
-impl<T: Diffable + ToOwned> Diffable for Cow<'_, T> {
+impl<T: Diffable + ToOwned + ?Sized> Diffable for Cow<'_, T> {
     type Diff<'daft>
         = <T as Diffable>::Diff<'daft>
     where
@@ -104,7 +107,7 @@ impl<T: Diffable + ToOwned> Diffable for Cow<'_, T> {
     }
 }
 
-impl<T: Diffable> Diffable for Arc<T> {
+impl<T: Diffable + ?Sized> Diffable for Arc<T> {
     type Diff<'daft>
         = <T as Diffable>::Diff<'daft>
     where
@@ -115,7 +118,7 @@ impl<T: Diffable> Diffable for Arc<T> {
     }
 }
 
-impl<T: Diffable> Diffable for Rc<T> {
+impl<T: Diffable + ?Sized> Diffable for Rc<T> {
     type Diff<'daft>
         = <T as Diffable>::Diff<'daft>
     where
@@ -128,7 +131,7 @@ impl<T: Diffable> Diffable for Rc<T> {
 
 // Can't express lifetimes due to `RefCell`'s limited borrows, so we must return
 // a leaf node that can be recursively diffed.
-impl<T: Eq + Debug> Diffable for RefCell<T> {
+impl<T: Eq + Debug + ?Sized> Diffable for RefCell<T> {
     type Diff<'daft>
         = Leaf<'daft, Self>
     where
@@ -139,7 +142,7 @@ impl<T: Eq + Debug> Diffable for RefCell<T> {
     }
 }
 
-impl<T> Diffable for PhantomData<T> {
+impl<T: ?Sized> Diffable for PhantomData<T> {
     type Diff<'daft>
         = Leaf<'daft, PhantomData<T>>
     where
@@ -294,6 +297,18 @@ set_diff!((BTreeSet, Ord), (HashSet, Hash));
 impl<T: Diffable + Debug> Diffable for Vec<T> {
     type Diff<'daft>
         = Leaf<'daft, Vec<T>>
+    where
+        T: 'daft;
+
+    fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
+        Leaf { before: self, after: other }
+    }
+}
+
+/// Treat slices as leaf nodes.
+impl<T: Diffable + Debug> Diffable for [T] {
+    type Diff<'daft>
+        = Leaf<'daft, [T]>
     where
         T: 'daft;
 

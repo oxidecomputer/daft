@@ -7,6 +7,7 @@ where
     a: <BTreeMap<usize, T> as daft::Diffable>::Diff<'daft>,
     b: <usize as daft::Diffable>::Diff<'daft>,
     c: <&'a U as daft::Diffable>::Diff<'daft>,
+    d: <&'a str as daft::Diffable>::Diff<'daft>,
 }
 impl<'a, T, U> daft::Diffable for S<'a, T, U>
 where
@@ -19,6 +20,7 @@ where
             a: daft::Diffable::diff(&self.a, &other.a),
             b: daft::Diffable::diff(&self.b, &other.b),
             c: daft::Diffable::diff(&self.c, &other.c),
+            d: daft::Diffable::diff(&self.d, &other.d),
         }
     }
 }

@@ -10,6 +10,7 @@ where
     a: BTreeMap<usize, T>,
     b: usize,
     c: &'a U,
+    d: &'a str,
 }
 
 fn main() {}

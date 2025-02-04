@@ -131,10 +131,21 @@ fn test_struct_with_generics() {
         a: BTreeMap<usize, T>,
         b: usize,
         c: &'a U,
+        d: &'a str,
     }
 
-    let x = S { a: [(5, 2usize)].into_iter().collect(), b: 5, c: &6usize };
-    let y = S { a: [(5, 1usize)].into_iter().collect(), b: 5, c: &6usize };
+    let x = S {
+        a: [(5, 2usize)].into_iter().collect(),
+        b: 5,
+        c: &6usize,
+        d: "hello",
+    };
+    let y = S {
+        a: [(5, 1usize)].into_iter().collect(),
+        b: 5,
+        c: &6usize,
+        d: "world",
+    };
     let diff = x.diff(&y);
 
     assert_eq!(diff.a.unchanged.len(), 0);
@@ -143,6 +154,8 @@ fn test_struct_with_generics() {
     assert_eq!(diff.a.removed.len(), 0);
     assert_eq!(diff.b.before, diff.b.after);
     assert_eq!(diff.c.before, diff.c.after);
+    assert_eq!(diff.d.before, "hello");
+    assert_eq!(diff.d.after, "world");
 
     println!("{diff:#?}");
 }

@@ -7,8 +7,8 @@ struct StructWithGenericsDiff<
     U: Eq + Debug + 'daft,
 >
 where
-    T: daft::Diffable + 'd,
-    U: daft::Diffable + 'e,
+    T: daft::Diffable + 'd + ?Sized,
+    U: daft::Diffable + 'e + ?Sized,
 {
     b: <usize as daft::Diffable>::Diff<'daft>,
     c: <&'d T as daft::Diffable>::Diff<'daft>,
@@ -17,8 +17,8 @@ where
 impl<'d, 'e, T: Eq + Debug, U: Eq + Debug> daft::Diffable
 for StructWithGenerics<'d, 'e, T, U>
 where
-    T: daft::Diffable + 'd,
-    U: daft::Diffable + 'e,
+    T: daft::Diffable + 'd + ?Sized,
+    U: daft::Diffable + 'e + ?Sized,
 {
     type Diff<'daft> = StructWithGenericsDiff<'daft, 'd, 'e, T, U> where Self: 'daft;
     fn diff<'daft>(
