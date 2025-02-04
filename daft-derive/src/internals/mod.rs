@@ -165,9 +165,10 @@ fn generate_fields(fields: &Fields) -> TokenStream {
         let vis = &f.vis;
         let ty = &f.ty;
 
-        // Always use the daft lifetime for the diff -- associations between
-        // that and existing parameters are handled in
-        // `add_lifetime_to_generics`.
+        // Always use the daft lifetime for the diff -- associations between the
+        // daft lifetime and existing parameters (both lifetime and type
+        // parameters) are created in `add_lifetime_to_generics`, e.g. `'a:
+        // 'daft`, or `T: 'daft`.
         let lt = daft_lifetime();
 
         match &f.ident {
