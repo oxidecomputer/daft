@@ -1,3 +1,7 @@
+//! Derive macro for daft (internal crate).
+//!
+//! For more information about daft, see [its documentation](https://docs.rs/daft).
+
 mod internals;
 
 use syn::parse_macro_input;

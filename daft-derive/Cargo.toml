@@ -2,6 +2,7 @@
 name = "daft-derive"
 version = "0.1.0"
 description = "Derive macro for daft"
+readme = "README.md"
 edition.workspace = true
 repository.workspace = true
 rust-version.workspace = true
@@ -29,3 +30,9 @@ uuid = { workspace = true, features = ["v4"] }
 [[test]]
 name = "snapshot_test"
 harness = false
+
+[package.metadata.cargo-sync-rdme.badge.badges]
+license = true
+crates-io = true
+docs-rs = true
+rust-version = true

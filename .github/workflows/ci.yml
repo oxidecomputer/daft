@@ -18,14 +18,20 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2.7.3
-      - uses: taiki-e/install-action@cargo-hack
-      - uses: taiki-e/install-action@just
+      - name: Install cargo-sync-rdme and just
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-sync-rdme,just,cargo-hack
       - name: Lint (clippy)
         run: just powerset clippy --all-targets
       - name: Lint (rustfmt)
         run: cargo xfmt --check
       - name: Run rustdoc
         run: just rustdoc
+      - name: Install nightly toolchain for cargo-sync-rdme
+        uses: dtolnay/rust-toolchain@nightly
+      - name: Regenerate readmes
+        run: just generate-readmes
       - name: Check for differences
         run: git diff --exit-code
 
