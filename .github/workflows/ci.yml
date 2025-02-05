@@ -21,7 +21,7 @@ jobs:
       - name: Install cargo-sync-rdme and just
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-sync-rdme,just
+          tool: cargo-sync-rdme,just,cargo-hack
       - name: Lint (clippy)
         run: just powerset clippy --all-targets
       - name: Lint (rustfmt)
