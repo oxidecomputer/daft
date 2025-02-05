@@ -214,6 +214,8 @@
 //! Some structs like identifiers should be treated as leaf nodes:
 //!
 //! ```rust
+//! use daft::{Diffable, Leaf};
+//!
 //! struct Identifier(String);
 //!
 //! impl Diffable for Identifier {
