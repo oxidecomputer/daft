@@ -28,6 +28,8 @@ jobs:
         run: cargo xfmt --check
       - name: Run rustdoc
         run: just rustdoc
+      - name: Install nightly toolchain for cargo-sync-rdme
+        uses: dtolnay/rust-toolchain@nightly
       - name: Regenerate readmes
         run: just generate-readmes
       - name: Check for differences
