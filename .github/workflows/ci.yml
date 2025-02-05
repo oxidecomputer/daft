@@ -26,6 +26,8 @@ jobs:
         run: cargo xfmt --check
       - name: Run rustdoc
         run: just rustdoc
+      - name: Regenerate readmes
+        run: just generate-readmes
       - name: Check for differences
         run: git diff --exit-code
 
