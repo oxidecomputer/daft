@@ -1,15 +1,17 @@
 [package]
 name = "daft"
 version = "0.1.0"
+description = "Structural diffs of Rust data structures"
 edition.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+license.workspace = true
 
 [lints]
 workspace = true
 
 [dependencies]
-daft-derive = { path = "../daft-derive" }
+daft-derive.workspace = true
 newtype-uuid = { workspace = true, optional = true }
 oxnet = { workspace = true, optional = true }
 paste.workspace = true
