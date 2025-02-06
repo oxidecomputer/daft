@@ -998,9 +998,9 @@ mod tests {
         };
 
         assert_ne!(diff.id.before, diff.id.after);
-        assert_eq!(diff.sled_state.unchanged.len(), 2);
+        assert_eq!(diff.sled_state.unchanged().count(), 2);
         assert_eq!(diff.sled_state.added.len(), 1);
         assert_eq!(diff.sled_state.removed.len(), 0);
-        assert_eq!(diff.sled_state.modified.len(), 1);
+        assert_eq!(diff.sled_state.modified().count(), 1);
     }
 }
