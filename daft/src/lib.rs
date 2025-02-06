@@ -422,6 +422,29 @@ impl<'daft, T: Diffable + ?Sized> Leaf<'daft, T> {
     }
 }
 
+impl<'daft, T: ?Sized> Leaf<'daft, &T> {
+    /// Map a `Leaf<&T>` to a `Leaf<T>`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use daft::{Diffable, Leaf};
+    ///
+    /// let before = "hello";
+    /// let after = "world";
+    ///
+    /// let leaf: Leaf<'_, &str> = Leaf { before: &before, after: &after };
+    /// // unref turns a Leaf<&str> into a Leaf<str>.
+    /// let leaf: Leaf<'_, str> = leaf.unref();
+    /// assert_eq!(leaf.before, "hello");
+    /// assert_eq!(leaf.after, "world");
+    /// ```
+    #[inline]
+    pub fn unref(self) -> Leaf<'daft, T> {
+        Leaf { before: *self.before, after: *self.after }
+    }
+}
+
 // Hand-implement Clone and Copy so that it doesn't require T: Copy.
 impl<T: ?Sized> Clone for Leaf<'_, T> {
     #[inline]
