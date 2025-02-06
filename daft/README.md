@@ -62,7 +62,8 @@ point at which diffing stops. [`Leaf`](https://docs.rs/daft/0.1.0/daft/struct.Le
 * *Enums*, since diffing across variants is usually not meaningful.
 * Vector and slice types, since there are several reasonable ways to diff
   vectors (e.g. set-like, ordered, etc.) and we don’t want to make assumptions.
-* Any point at which you want to terminate recursion, via the `#[daft(leaf)]` attribute.
+* As an opt-in mechanism for struct fields: see
+  [*Recursive diffs*](#recursive-diffs) below for more.
 
 ##### Example
 
@@ -182,6 +183,10 @@ implement [`Diffable`](https://docs.rs/daft/0.1.0/daft/trait.Diffable.html).
 A struct `Foo` gets a corresponding `FooDiff` struct, which has fields
 corresponding to each field in `Foo`.
 
+Structs can be annotated with `#[daft(leaf)]` to treat the field as a leaf
+node, regardless of the field’s `Diff` type or even whether it implements
+[`Diffable`](https://docs.rs/daft/0.1.0/daft/trait.Diffable.html).
+
 ##### Example
 
 For an example of structs with named fields, see [*Usage*](#usage) above.
@@ -202,6 +207,54 @@ let diff = before.diff(&after);
 assert_eq!(**diff.0.added.get(&1).unwrap(), "hello");
 assert_eq!(*diff.1.before, 1);
 assert_eq!(*diff.1.after, 2);
+````
+
+An example with `#[daft(leaf)]`:
+
+````rust
+use daft::{Diffable, Leaf};
+
+// A simple struct that implements Diffable.
+struct InnerStruct {
+    text: &'static str,
+}
+
+// A struct that does not implement Diffable.
+struct PlainStruct(usize);
+
+struct OuterStruct {
+    // Ordinarily, InnerStruct would be diffed recursively, but
+    // with #[daft(leaf)], it is treated as a leaf node.
+    #[daft(leaf)]
+    inner: InnerStruct,
+
+    // PlainStruct does not implement Diffable, but using
+    // daft(leaf) allows it to be diffed anyway.
+    #[daft(leaf)]
+    plain: PlainStruct,
+}
+
+let before = OuterStruct { inner: InnerStruct { text: "hello" }, plain: PlainStruct(1) };
+let after = OuterStruct { inner: InnerStruct { text: "world" }, plain: PlainStruct(2) };
+let diff = before.diff(&after);
+
+// `OuterStructDiff` does *not* recursively diff `InnerStruct`, but instead
+// returns a leaf node.
+assert_eq!(
+    diff.inner,
+    Leaf { before: &InnerStruct { text: "hello" }, after: &InnerStruct { text: "world" } },
+);
+
+// But you can continue the recursion anyway, since `InnerStruct` implements
+// `Diffable`:
+let inner_diff = diff.inner.diff_pair();
+assert_eq!(
+    inner_diff,
+    InnerStructDiff { text: Leaf { before: "hello", after: "world" } },
+);
+
+// `PlainStruct` can also be compared even though it doesn't implement `Diffable`.
+assert_eq!(diff.plain, Leaf { before: &PlainStruct(1), after: &PlainStruct(2) });
 ````
 
 #### Custom diff types
@@ -234,9 +287,10 @@ impl Diffable for Identifier {
 
 ### Type and lifetime parameters
 
-If a type parameter is specified, the \[`Diffable`\]\[macro@Diffable\]
-derive macro for structs normally requires that the type parameter implement
-`Diffable`. An exception is if the field is annotated with `#[daft(leaf)]`.
+If a type parameter is specified, the \[`Diffable`\]\[macro@Diffable\] derive
+macro for structs normally requires that the type parameter implement
+`Diffable`. This is not required if the field is annotated with
+`#[daft(leaf)]`.
 
 Daft fully supports types with arbitrary lifetimes. Automatically generated
 diff structs will have an additional `'daft` lifetime parameter at the
