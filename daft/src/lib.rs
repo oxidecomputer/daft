@@ -349,7 +349,7 @@ pub trait Diffable {
 /// A primitive or atomic change.
 ///
 /// For more information, see the [crate-level documentation](crate).
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Leaf<'daft, T: ?Sized> {
     pub before: &'daft T,
     pub after: &'daft T,
