@@ -19,6 +19,9 @@ paste.workspace = true
 uuid = { workspace = true, optional = true, features = ["v4"] }
 
 [features]
+default = ["std"]
+std = ["alloc"]
+alloc = []
 newtype-uuid1 = ["dep:newtype-uuid"]
 oxnet01 = ["dep:oxnet"]
 uuid1 = ["dep:uuid"]
