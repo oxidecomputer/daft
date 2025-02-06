@@ -14,6 +14,13 @@ Daft consists of a trait called [`Diffable`](https://docs.rs/daft/0.1.0/daft/dif
 macro\]\[macro@Diffable\] by the same name. This trait represents the
 notion of a type for which two members can be simultaneously compared.
 
+## Features
+
+* **Recursive diffing** of structs, sets, and maps
+* **Derive macro** for automatically generating diff types
+* Choose between **eager** and **lazy** diffing
+* **No-std compatible**, both with and without `alloc`
+
 ## Usage
 
 ````rust

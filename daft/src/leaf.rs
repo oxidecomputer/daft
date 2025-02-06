@@ -30,10 +30,12 @@ impl<T> Leaf<T> {
     /// # Example
     ///
     /// ```
+    /// # #[cfg(feature = "std")] {
     /// use daft::Leaf;
     ///
     /// let x: Leaf<String> = Leaf { before: "hello".to_owned(), after: "world".to_owned() };
     /// assert_eq!(x.as_deref(), Leaf { before: "hello", after: "world" });
+    /// # }
     /// ```
     #[inline]
     pub fn as_deref(&self) -> Leaf<&T::Target>
@@ -48,6 +50,7 @@ impl<T> Leaf<T> {
     /// # Example
     ///
     /// ```
+    /// # #[cfg(feature = "std")] {
     /// use daft::Leaf;
     ///
     /// let mut x: Leaf<String> = Leaf { before: "hello".to_owned(), after: "world".to_owned() };
@@ -58,6 +61,7 @@ impl<T> Leaf<T> {
     ///     }),
     ///     Leaf { before: "HELLO".to_owned().as_mut_str(), after: "WORLD".to_owned().as_mut_str() },
     /// );
+    /// # }
     /// ```
     #[inline]
     pub fn as_deref_mut(&mut self) -> Leaf<&mut T::Target>
@@ -89,7 +93,10 @@ impl<T> Leaf<T> {
     /// # }
     /// ```
     #[inline]
-    pub fn map<U>(self, mut f: impl FnMut(T) -> U) -> Leaf<U> {
+    pub fn map<U, F>(self, mut f: F) -> Leaf<U>
+    where
+        F: FnMut(T) -> U,
+    {
         Leaf { before: f(self.before), after: f(self.after) }
     }
 }
@@ -129,7 +136,7 @@ impl<T> Leaf<&T> {
     where
         T: Clone,
     {
-        Leaf { before: self.before.to_owned(), after: self.after.to_owned() }
+        Leaf { before: self.before.clone(), after: self.after.clone() }
     }
 
     /// Create a copy of the leaf with owned values.

@@ -190,6 +190,7 @@ fn diff_pair_lifetimes() {
         assert_eq!(inner_diff.b.before, "hello");
         assert_eq!(inner_diff.b.after, "world");
 
+        // The return value of this will outlive before and after as well.
         inner_diff.b.map(str::to_owned)
     };
 

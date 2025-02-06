@@ -7,9 +7,17 @@
 //! macro][macro@Diffable] by the same name. This trait represents the
 //! notion of a type for which two members can be simultaneously compared.
 //!
+//! # Features
+//!
+//! - **Recursive diffing** of structs, sets, and maps
+//! - **Derive macro** for automatically generating diff types
+//! - Choose between **eager** and **lazy** diffing
+//! - **No-std compatible**, both with and without `alloc`
+//!
 //! # Usage
 //!
 //! ```rust
+//! # #[cfg(feature = "std")] {
 //! use daft::{Diffable, Leaf};
 //!
 //! // Annotate your struct with `#[derive(Diffable)]`:
@@ -40,6 +48,7 @@
 //! assert_eq!(*diff.a.after, 2);
 //! assert_eq!(diff.b.before, "hello");
 //! assert_eq!(diff.b.after, "world");
+//! # }
 //! ```
 //!
 //! This crate assigns one side the name *before*, and the other side *after*.
