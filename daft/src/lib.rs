@@ -357,8 +357,9 @@ pub struct Leaf<'daft, T: ?Sized> {
 
 // Hand-implement Clone and Copy so that it doesn't require T: Copy.
 impl<T: ?Sized> Clone for Leaf<'_, T> {
+    #[inline]
     fn clone(&self) -> Self {
-        Self { before: self.before, after: self.after }
+        *self
     }
 }
 impl<T: ?Sized> Copy for Leaf<'_, T> {}
