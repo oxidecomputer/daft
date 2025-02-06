@@ -152,11 +152,14 @@
 //! );
 //!
 //! // If `V` implements `Eq`, unchanged and modified iterators become
-//! // available. Here's `unchanged_keys` to get the keys of
-//! // unchanged entries:
+//! // available. `unchanged` and `modified` return key-value pairs;
+//! // `unchanged_keys` and `modified_keys` return keys; and
+//! // `unchanged_values` and `modified_values` return values.
+//! //
+//! // Here's `unchanged_keys` to get the keys of unchanged entries:
 //! assert_eq!(diff.unchanged_keys().collect::<Vec<_>>(), [&2]);
 //!
-//! // modified_values() returns leaf nodes for modified entries.
+//! // `modified_values` returns leaf nodes for modified entries.
 //! assert_eq!(
 //!     diff.modified_values().collect::<Vec<_>>(),
 //!     [Leaf { before: &"three", after: &"THREE" }],
