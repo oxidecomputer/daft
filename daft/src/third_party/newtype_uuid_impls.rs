@@ -1,10 +1,11 @@
 use crate::{Diffable, Leaf};
+use newtype_uuid::{TypedUuid, TypedUuidKind};
 
-impl<T> Diffable for newtype_uuid::TypedUuid<T>
+impl<T> Diffable for TypedUuid<T>
 where
-    T: newtype_uuid::TypedUuidKind + Diffable,
+    T: TypedUuidKind + Diffable,
 {
-    type Diff<'daft> = Leaf<'daft, newtype_uuid::TypedUuid<T>>;
+    type Diff<'daft> = Leaf<&'daft TypedUuid<T>>;
 
     fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
         Leaf { before: self, after: other }

@@ -18,6 +18,7 @@ macro_rules! leaf {
     }
 }
 
+#[cfg(feature = "alloc")]
 macro_rules! leaf_deref {
     ($($typ:ty => $target:ty),*) => {
         $(

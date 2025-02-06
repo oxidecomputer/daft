@@ -27,8 +27,8 @@ struct MyStruct {
 
 // This generates a type called MyStructDiff, which looks like:
 struct MyStructDiff<'daft> {
-    a: Leaf<'daft, i32>,
-    b: Leaf<'daft, &'static str>,
+    a: Leaf<&'daft i32>,
+    b: Leaf<&'daft str>,
 }
 
 // Then, with two instances of MyStruct:
@@ -72,7 +72,7 @@ A contrived example for integers:
 ````rust
 use daft::{Diffable, Leaf};
 
-let diff: Leaf<'_, i32> = 1_i32.diff(&2);
+let diff: Leaf<&i32> = 1_i32.diff(&2);
 assert_eq!(*diff.before, 1);
 assert_eq!(*diff.after, 2);
 ````
@@ -83,9 +83,9 @@ Enums also use `Leaf`:
 use daft::{Diffable, Leaf};
 
 // Option<T> uses Leaf:
-let diff: Leaf<'_, Option<i32>> = Some(1_i32).diff(&Some(2));
-assert_eq!(*diff.before, Some(1));
-assert_eq!(*diff.after, Some(2));
+let diff: Leaf<Option<&i32>> = Some(1_i32).diff(&Some(2));
+assert_eq!(diff.before, Some(&1));
+assert_eq!(diff.after, Some(&2));
 
 // Automatically derived enums also use Leaf:
 enum MyEnum {
@@ -96,7 +96,7 @@ enum MyEnum {
 let before = MyEnum::A(1);
 let after = MyEnum::B("hello".to_string());
 
-let diff: Leaf<'_, MyEnum> = before.diff(&after);
+let diff: Leaf<&MyEnum> = before.diff(&after);
 assert_eq!(diff.before, &before);
 assert_eq!(diff.after, &after);
 ````
@@ -108,7 +108,7 @@ use daft::{Diffable, Leaf};
 
 let before = vec![1, 2, 3];
 let after = vec![4, 5, 6];
-let diff: Leaf<'_, Vec<i32>> = before.diff(&after);
+let diff: Leaf<&[i32]> = before.diff(&after);
 assert_eq!(diff.before, &before);
 assert_eq!(diff.after, &after);
 ````
@@ -265,7 +265,7 @@ assert_eq!(
 
 // But you can continue the recursion anyway, since `InnerStruct` implements
 // `Diffable`:
-let inner_diff = diff.inner.diff_pair();
+let inner_diff = diff.inner.diff_ref_pair();
 assert_eq!(
     inner_diff,
     InnerStructDiff { text: Leaf { before: "hello", after: "world" } },
@@ -292,7 +292,7 @@ use daft::{Diffable, Leaf};
 struct Identifier(String);
 
 impl Diffable for Identifier {
-    type Diff<'daft> = Leaf<'daft, Self>;
+    type Diff<'daft> = Leaf<&'daft Self>;
 
     fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
         Leaf {

@@ -275,7 +275,7 @@
 //!
 //! // But you can continue the recursion anyway, since `InnerStruct` implements
 //! // `Diffable`:
-//! let inner_diff = diff.inner.diff_pair();
+//! let inner_diff = diff.inner.diff_ref_pair();
 //! assert_eq!(
 //!     inner_diff,
 //!     InnerStructDiff { text: Leaf { before: "hello", after: "world" } },

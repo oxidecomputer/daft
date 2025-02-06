@@ -27,7 +27,7 @@ mod tests {
         // for `TestStruct`
         #[derive(Debug)]
         struct TestStructDiff<'daft> {
-            id: Leaf<'daft, Uuid>,
+            id: Leaf<&'daft Uuid>,
             sled_state: BTreeMapDiff<'daft, Uuid, SledState>,
         }
 

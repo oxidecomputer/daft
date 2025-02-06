@@ -180,10 +180,9 @@ fn diff_pair_lifetimes() {
     let diff = before.diff(&after);
     let inner_diff = {
         let inner: Leaf<&Inner> = diff.inner;
-        // inner.diff_pair by itself won't outlive inner -- however, `copied`
-        // will cause a dereference, which will outlive inner (and be tied to
-        // the lifetimes of before and after).
-        inner.diff_pair()
+        // inner.diff_pair by itself won't outlive inner, but
+        // inner.diff_ref_pair will.
+        inner.diff_ref_pair()
     };
 
     assert_eq!(*inner_diff.a.before, 5);

@@ -42,6 +42,24 @@ impl<T> Leaf<T> {
     {
         Leaf { before: &mut *self.before, after: &mut *self.after }
     }
+
+    /// Perform a diff on [`before`][Self::before] and [`after`][Self::after],
+    /// returning `T::Diff`.
+    ///
+    /// This is useful when `T::Diff` is not a leaf node.
+    ///
+    /// # Lifetimes
+    ///
+    /// The lifetime of the diff is tied to that of `self`. If `T` is a
+    /// reference and you need to extend the lifetime of the diff to that of the
+    /// references, use [`Self::diff_ref_pair`].
+    #[inline]
+    pub fn diff_pair(&self) -> T::Diff<'_>
+    where
+        T: Diffable,
+    {
+        self.before.diff(&self.after)
+    }
 }
 
 impl<'daft, T: ?Sized + Diffable> Leaf<&'daft T> {
@@ -49,9 +67,14 @@ impl<'daft, T: ?Sized + Diffable> Leaf<&'daft T> {
     /// returning `T::Diff`.
     ///
     /// This is useful when `T::Diff` is not a leaf node.
+    ///
+    /// # Lifetimes
+    ///
+    /// This is similar to [`Self::diff_pair`], but it only works on references,
+    /// and it extends the lifetime of the diff to that of the references.
     #[inline]
-    pub fn diff_pair(self) -> T::Diff<'daft> {
-        self.before.diff(&self.after)
+    pub fn diff_ref_pair(self) -> T::Diff<'daft> {
+        self.before.diff(self.after)
     }
 }
 
