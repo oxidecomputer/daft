@@ -62,7 +62,8 @@ point at which diffing stops. [`Leaf`](https://docs.rs/daft/0.1.0/daft/struct.Le
 * *Enums*, since diffing across variants is usually not meaningful.
 * Vector and slice types, since there are several reasonable ways to diff
   vectors (e.g. set-like, ordered, etc.) and we don’t want to make assumptions.
-* Any point at which you want to terminate recursion, via the `#[daft(leaf)]` attribute.
+* As an opt-in mechanism for struct fields: see
+  [*Recursive diffs*](#recursive-diffs) below for more.
 
 ##### Example
 
@@ -115,10 +116,11 @@ assert_eq!(diff.after, &after);
 #### Map diffs
 
 For [`BTreeMap`](https://doc.rust-lang.org/nightly/alloc/collections/btree/map/struct.BTreeMap.html) and [`HashMap`](https://doc.rust-lang.org/nightly/std/collections/hash/map/struct.HashMap.html), daft has corresponding [`BTreeMapDiff`](https://docs.rs/daft/0.1.0/daft/struct.BTreeMapDiff.html)
-and [`HashMapDiff`](https://docs.rs/daft/0.1.0/daft/struct.HashMapDiff.html) types. These types have fields for *unchanged*, *added*,
-*removed*, and *modified* entries.
+and [`HashMapDiff`](https://docs.rs/daft/0.1.0/daft/struct.HashMapDiff.html) types. These types have fields for *common*, *added*,
+and *removed* entries.
 
-Map diffs are performed eagerly.
+Map diffs are performed eagerly for keys, but values are stored as leaf
+nodes.
 
 ##### Example
 
@@ -138,23 +140,37 @@ b.insert(4, "four");
 
 let diff: BTreeMapDiff<'_, i32, &str> = a.diff(&b);
 
-// Unchanged, added, and removed entries are stored as maps:
-assert_eq!(diff.unchanged, [(&2, &"two")].into_iter().collect());
+// Added and removed entries are stored as maps:
 assert_eq!(diff.added, [(&4, &"four")].into_iter().collect());
 assert_eq!(diff.removed, [(&1, &"one")].into_iter().collect());
 
-// Modified entries are stored via the values' diff types:
+// Common entries are stored as leaf nodes.
 assert_eq!(
-    diff.modified,
-    [(&3, Leaf { before: "three", after: "THREE" })].into_iter().collect(),
+    diff.common,
+    [
+        (&2, Leaf { before: &"two", after: &"two" }),
+        (&3, Leaf { before: &"three", after: &"THREE" })
+    ]
+    .into_iter().collect(),
+);
+
+// If `V` implements `Eq`, unchanged and modified iterators become
+// available. Here's `unchanged_keys` to get the keys of
+// unchanged entries:
+assert_eq!(diff.unchanged_keys().collect::<Vec<_>>(), [&2]);
+
+// modified_values() returns leaf nodes for modified entries.
+assert_eq!(
+    diff.modified_values().collect::<Vec<_>>(),
+    [Leaf { before: &"three", after: &"THREE" }],
 );
 ````
 
 #### Set diffs
 
 For [`BTreeSet`](https://doc.rust-lang.org/nightly/alloc/collections/btree/set/struct.BTreeSet.html) and [`HashSet`](https://doc.rust-lang.org/nightly/std/collections/hash/set/struct.HashSet.html), daft has corresponding [`BTreeSetDiff`](https://docs.rs/daft/0.1.0/daft/struct.BTreeSetDiff.html)
-and [`HashSetDiff`](https://docs.rs/daft/0.1.0/daft/struct.HashSetDiff.html) types. These types have fields for unchanged, added and
-removed entries.
+and [`HashSetDiff`](https://docs.rs/daft/0.1.0/daft/struct.HashSetDiff.html) types. These types have fields for *common*, *added*,
+and *removed* entries.
 
 Set diffs are performed eagerly.
 
@@ -168,7 +184,7 @@ let a: BTreeSet<i32> = [0, 1, 2, 3, 4, 5].into_iter().collect();
 let b: BTreeSet<i32> = [3, 4, 5, 6, 7, 8].into_iter().collect();
 let diff: BTreeSetDiff<'_, i32> = a.diff(&b);
 
-assert_eq!(diff.unchanged, [&3, &4, &5].into_iter().collect::<Vec<_>>());
+assert_eq!(diff.common, [&3, &4, &5].into_iter().collect::<Vec<_>>());
 assert_eq!(diff.added, [&6, &7, &8].into_iter().collect::<Vec<_>>());
 assert_eq!(diff.removed, [&0, &1, &2].into_iter().collect::<Vec<_>>());
 ````
@@ -181,6 +197,10 @@ implement [`Diffable`](https://docs.rs/daft/0.1.0/daft/trait.Diffable.html).
 
 A struct `Foo` gets a corresponding `FooDiff` struct, which has fields
 corresponding to each field in `Foo`.
+
+Structs can be annotated with `#[daft(leaf)]` to treat the field as a leaf
+node, regardless of the field’s `Diff` type or even whether it implements
+[`Diffable`](https://docs.rs/daft/0.1.0/daft/trait.Diffable.html).
 
 ##### Example
 
@@ -202,6 +222,54 @@ let diff = before.diff(&after);
 assert_eq!(**diff.0.added.get(&1).unwrap(), "hello");
 assert_eq!(*diff.1.before, 1);
 assert_eq!(*diff.1.after, 2);
+````
+
+An example with `#[daft(leaf)]`:
+
+````rust
+use daft::{Diffable, Leaf};
+
+// A simple struct that implements Diffable.
+struct InnerStruct {
+    text: &'static str,
+}
+
+// A struct that does not implement Diffable.
+struct PlainStruct(usize);
+
+struct OuterStruct {
+    // Ordinarily, InnerStruct would be diffed recursively, but
+    // with #[daft(leaf)], it is treated as a leaf node.
+    #[daft(leaf)]
+    inner: InnerStruct,
+
+    // PlainStruct does not implement Diffable, but using
+    // daft(leaf) allows it to be diffed anyway.
+    #[daft(leaf)]
+    plain: PlainStruct,
+}
+
+let before = OuterStruct { inner: InnerStruct { text: "hello" }, plain: PlainStruct(1) };
+let after = OuterStruct { inner: InnerStruct { text: "world" }, plain: PlainStruct(2) };
+let diff = before.diff(&after);
+
+// `OuterStructDiff` does *not* recursively diff `InnerStruct`, but instead
+// returns a leaf node.
+assert_eq!(
+    diff.inner,
+    Leaf { before: &InnerStruct { text: "hello" }, after: &InnerStruct { text: "world" } },
+);
+
+// But you can continue the recursion anyway, since `InnerStruct` implements
+// `Diffable`:
+let inner_diff = diff.inner.diff_pair();
+assert_eq!(
+    inner_diff,
+    InnerStructDiff { text: Leaf { before: "hello", after: "world" } },
+);
+
+// `PlainStruct` can also be compared even though it doesn't implement `Diffable`.
+assert_eq!(diff.plain, Leaf { before: &PlainStruct(1), after: &PlainStruct(2) });
 ````
 
 #### Custom diff types
@@ -234,9 +302,10 @@ impl Diffable for Identifier {
 
 ### Type and lifetime parameters
 
-If a type parameter is specified, the \[`Diffable`\]\[macro@Diffable\]
-derive macro for structs normally requires that the type parameter implement
-`Diffable`. An exception is if the field is annotated with `#[daft(leaf)]`.
+If a type parameter is specified, the \[`Diffable`\]\[macro@Diffable\] derive
+macro for structs normally requires that the type parameter implement
+`Diffable`. This is not required if the field is annotated with
+`#[daft(leaf)]`.
 
 Daft fully supports types with arbitrary lifetimes. Automatically generated
 diff structs will have an additional `'daft` lifetime parameter at the
@@ -293,9 +362,8 @@ this crate and a great alternative. Daft diverges from diffus in a few ways:
   diffing is desired.
 
 * Diffus has a `Same` trait, which is like `Eq` except it’s also implemented
-  for floats. Daft doesn’t have the `Same` trait, and in fact mostly forgoes
-  any trait requirements: the only places where `Eq` is required is for maps
-  (both keys and values) and sets.
+  for floats. Daft doesn’t have the `Same` trait, and its core
+  functionality forgoes the need for `Eq` entirely.
   
   For a primitive scalar like `f64`, you’ll get a `Leaf` struct which you can
   compare with whatever notion of equality you want.
