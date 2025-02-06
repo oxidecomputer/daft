@@ -58,7 +58,8 @@
 //! * *Enums*, since diffing across variants is usually not meaningful.
 //! * Vector and slice types, since there are several reasonable ways to diff
 //!   vectors (e.g. set-like, ordered, etc.) and we don't want to make assumptions.
-//! * Any point at which you want to terminate recursion, via the `#[daft(leaf)]` attribute.
+//! * As an opt-in mechanism for struct fields: see
+//!   [*Recursive diffs*](#recursive-diffs) below for more.
 //!
 //! #### Example
 //!
@@ -112,10 +113,11 @@
 //! ### Map diffs
 //!
 //! For [`BTreeMap`] and [`HashMap`], daft has corresponding [`BTreeMapDiff`]
-//! and [`HashMapDiff`] types. These types have fields for *unchanged*, *added*,
-//! *removed*, and *modified* entries.
+//! and [`HashMapDiff`] types. These types have fields for *common*, *added*,
+//! and *removed* entries.
 //!
-//! Map diffs are performed eagerly.
+//! Map diffs are performed eagerly for keys, but values are stored as leaf
+//! nodes.
 //!
 //! #### Example
 //!
@@ -135,23 +137,40 @@
 //!
 //! let diff: BTreeMapDiff<'_, i32, &str> = a.diff(&b);
 //!
-//! // Unchanged, added, and removed entries are stored as maps:
-//! assert_eq!(diff.unchanged, [(&2, &"two")].into_iter().collect());
+//! // Added and removed entries are stored as maps:
 //! assert_eq!(diff.added, [(&4, &"four")].into_iter().collect());
 //! assert_eq!(diff.removed, [(&1, &"one")].into_iter().collect());
 //!
-//! // Modified entries are stored via the values' diff types:
+//! // Common entries are stored as leaf nodes.
 //! assert_eq!(
-//!     diff.modified,
-//!     [(&3, Leaf { before: "three", after: "THREE" })].into_iter().collect(),
+//!     diff.common,
+//!     [
+//!         (&2, Leaf { before: &"two", after: &"two" }),
+//!         (&3, Leaf { before: &"three", after: &"THREE" })
+//!     ]
+//!     .into_iter().collect(),
+//! );
+//!
+//! // If `V` implements `Eq`, unchanged and modified iterators become
+//! // available. `unchanged` and `modified` return key-value pairs;
+//! // `unchanged_keys` and `modified_keys` return keys; and
+//! // `unchanged_values` and `modified_values` return values.
+//! //
+//! // Here's `unchanged_keys` to get the keys of unchanged entries:
+//! assert_eq!(diff.unchanged_keys().collect::<Vec<_>>(), [&2]);
+//!
+//! // `modified_values` returns leaf nodes for modified entries.
+//! assert_eq!(
+//!     diff.modified_values().collect::<Vec<_>>(),
+//!     [Leaf { before: &"three", after: &"THREE" }],
 //! );
 //! ```
 //!
 //! ### Set diffs
 //!
 //! For [`BTreeSet`] and [`HashSet`], daft has corresponding [`BTreeSetDiff`]
-//! and [`HashSetDiff`] types. These types have fields for unchanged, added and
-//! removed entries.
+//! and [`HashSetDiff`] types. These types have fields for *common*, *added*,
+//! and *removed* entries.
 //!
 //! Set diffs are performed eagerly.
 //!
@@ -165,9 +184,9 @@
 //! let b: BTreeSet<i32> = [3, 4, 5, 6, 7, 8].into_iter().collect();
 //! let diff: BTreeSetDiff<'_, i32> = a.diff(&b);
 //!
-//! assert_eq!(diff.unchanged, [&3, &4, &5].into_iter().collect::<Vec<_>>());
-//! assert_eq!(diff.added, [&6, &7, &8].into_iter().collect::<Vec<_>>());
-//! assert_eq!(diff.removed, [&0, &1, &2].into_iter().collect::<Vec<_>>());
+//! assert_eq!(diff.common, [&3, &4, &5].into_iter().collect());
+//! assert_eq!(diff.added, [&6, &7, &8].into_iter().collect());
+//! assert_eq!(diff.removed, [&0, &1, &2].into_iter().collect());
 //! ```
 //!
 //! ### Recursive diffs
@@ -178,6 +197,10 @@
 //!
 //! A struct `Foo` gets a corresponding `FooDiff` struct, which has fields
 //! corresponding to each field in `Foo`.
+//!
+//! Structs can be annotated with `#[daft(leaf)]` to treat the field as a leaf
+//! node, regardless of the field's `Diff` type or even whether it implements
+//! [`Diffable`].
 //!
 //! #### Example
 //!
@@ -200,6 +223,57 @@
 //! assert_eq!(**diff.0.added.get(&1).unwrap(), "hello");
 //! assert_eq!(*diff.1.before, 1);
 //! assert_eq!(*diff.1.after, 2);
+//! ```
+//!
+//! An example with `#[daft(leaf)]`:
+//!
+//! ```rust
+//! use daft::{Diffable, Leaf};
+//!
+//! // A simple struct that implements Diffable.
+//! #[derive(Debug, PartialEq, Eq, Diffable)]
+//! struct InnerStruct {
+//!     text: &'static str,
+//! }
+//!
+//! // A struct that does not implement Diffable.
+//! #[derive(Debug, PartialEq, Eq)]
+//! struct PlainStruct(usize);
+//!
+//! #[derive(Diffable)]
+//! struct OuterStruct {
+//!     // Ordinarily, InnerStruct would be diffed recursively, but
+//!     // with #[daft(leaf)], it is treated as a leaf node.
+//!     #[daft(leaf)]
+//!     inner: InnerStruct,
+//!
+//!     // PlainStruct does not implement Diffable, but using
+//!     // daft(leaf) allows it to be diffed anyway.
+//!     #[daft(leaf)]
+//!     plain: PlainStruct,
+//! }
+//!
+//! let before = OuterStruct { inner: InnerStruct { text: "hello" }, plain: PlainStruct(1) };
+//! let after = OuterStruct { inner: InnerStruct { text: "world" }, plain: PlainStruct(2) };
+//! let diff = before.diff(&after);
+//!
+//! // `OuterStructDiff` does *not* recursively diff `InnerStruct`, but instead
+//! // returns a leaf node.
+//! assert_eq!(
+//!     diff.inner,
+//!     Leaf { before: &InnerStruct { text: "hello" }, after: &InnerStruct { text: "world" } },
+//! );
+//!
+//! // But you can continue the recursion anyway, since `InnerStruct` implements
+//! // `Diffable`:
+//! let inner_diff = diff.inner.diff_pair();
+//! assert_eq!(
+//!     inner_diff,
+//!     InnerStructDiff { text: Leaf { before: "hello", after: "world" } },
+//! );
+//!
+//! // `PlainStruct` can also be compared even though it doesn't implement `Diffable`.
+//! assert_eq!(diff.plain, Leaf { before: &PlainStruct(1), after: &PlainStruct(2) });
 //! ```
 //!
 //! ### Custom diff types
@@ -232,9 +306,10 @@
 //!
 //! ## Type and lifetime parameters
 //!
-//! If a type parameter is specified, the [`Diffable`][macro@Diffable]
-//! derive macro for structs normally requires that the type parameter implement
-//! `Diffable`. An exception is if the field is annotated with `#[daft(leaf)]`.
+//! If a type parameter is specified, the [`Diffable`][macro@Diffable] derive
+//! macro for structs normally requires that the type parameter implement
+//! `Diffable`. This is not required if the field is annotated with
+//! `#[daft(leaf)]`.
 //!
 //! Daft fully supports types with arbitrary lifetimes. Automatically generated
 //! diff structs will have an additional `'daft` lifetime parameter at the
@@ -295,9 +370,8 @@
 //!   diffing is desired.
 //!
 //! * Diffus has a `Same` trait, which is like `Eq` except it's also implemented
-//!   for floats. Daft doesn't have the `Same` trait, and in fact mostly forgoes
-//!   any trait requirements: the only places where `Eq` is required is for maps
-//!   (both keys and values) and sets.
+//!   for floats. Daft doesn't have the `Same` trait, and its core
+//!   functionality forgoes the need for `Eq` entirely.
 //!
 //!   For a primitive scalar like `f64`, you'll get a `Leaf` struct which you can
 //!   compare with whatever notion of equality you want.
@@ -349,11 +423,53 @@ pub trait Diffable {
 /// A primitive or atomic change.
 ///
 /// For more information, see the [crate-level documentation](crate).
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Leaf<'daft, T: ?Sized> {
     pub before: &'daft T,
     pub after: &'daft T,
 }
+
+impl<'daft, T: Diffable + ?Sized> Leaf<'daft, T> {
+    /// Perform a diff on before and after, returning `T::Diff`.
+    ///
+    /// This is useful when `T::Diff` is not a leaf node.
+    #[inline]
+    pub fn diff_pair(&self) -> T::Diff<'daft> {
+        self.before.diff(self.after)
+    }
+}
+
+impl<'daft, T: ?Sized> Leaf<'daft, &T> {
+    /// Map a `Leaf<&T>` to a `Leaf<T>`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use daft::{Diffable, Leaf};
+    ///
+    /// let before = "hello";
+    /// let after = "world";
+    ///
+    /// let leaf: Leaf<'_, &str> = Leaf { before: &before, after: &after };
+    /// // unref turns a Leaf<&str> into a Leaf<str>.
+    /// let leaf: Leaf<'_, str> = leaf.unref();
+    /// assert_eq!(leaf.before, "hello");
+    /// assert_eq!(leaf.after, "world");
+    /// ```
+    #[inline]
+    pub fn unref(self) -> Leaf<'daft, T> {
+        Leaf { before: *self.before, after: *self.after }
+    }
+}
+
+// Hand-implement Clone and Copy so that it doesn't require T: Copy.
+impl<T: ?Sized> Clone for Leaf<'_, T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl<T: ?Sized> Copy for Leaf<'_, T> {}
 
 #[macro_export]
 macro_rules! leaf{
@@ -512,36 +628,99 @@ macro_rules! map_diff {
          paste! {
 
             #[derive(Debug, PartialEq, Eq)]
-            pub struct [<$typ Diff>]<'daft, K: $key_constraint + Eq, V: Diffable> {
-                pub unchanged: $typ<&'daft K, &'daft V>,
+            pub struct [<$typ Diff>]<'daft, K: $key_constraint + Eq, V> {
+                pub common: $typ<&'daft K, Leaf<'daft, V>>,
                 pub added: $typ<&'daft K, &'daft V>,
                 pub removed: $typ<&'daft K, &'daft V>,
-                pub modified: $typ<&'daft K, V::Diff<'daft>>,
             }
 
-            impl<'daft, K: $key_constraint + Eq, V: Diffable> [<$typ Diff>]<'daft, K, V> {
+            impl<'daft, K: $key_constraint + Eq, V> [<$typ Diff>]<'daft, K, V> {
                 pub fn new() -> Self {
                     Self {
-                        unchanged: $typ::new(),
+                        common: $typ::new(),
                         added: $typ::new(),
                         removed: $typ::new(),
-                        modified: $typ::new(),
                     }
+                }
+            }
+
+            impl<'daft, K: $key_constraint + Eq, V: Eq> [<$typ Diff>]<'daft, K, V> {
+                /// Return an iterator over unchanged keys and values.
+                pub fn unchanged(&self) -> impl Iterator<Item = (&'daft K, &'daft V)> + '_ {
+                    self.common.iter().filter_map(|(k, leaf)| {
+                        (leaf.before == leaf.after).then_some((*k, leaf.before))
+                    })
+                }
+
+                /// Return an iterator over unchanged keys.
+                pub fn unchanged_keys(&self) -> impl Iterator<Item = &'daft K> + '_ {
+                    self.common.iter().filter_map(|(k, leaf)| {
+                        (leaf.before == leaf.after).then_some(*k)
+                    })
+                }
+
+                /// Return an iterator over unchanged values.
+                pub fn unchanged_values(&self) -> impl Iterator<Item = &'daft V> + '_ {
+                    self.common.iter().filter_map(|(_, leaf)| {
+                        (leaf.before == leaf.after).then_some(leaf.before)
+                    })
+                }
+
+                /// Return an iterator over modified keys and values.
+                pub fn modified(&self) -> impl Iterator<Item = (&'daft K, Leaf<'daft, V>)> + '_ {
+                    self.common.iter().filter_map(|(k, leaf)| {
+                        (leaf.before != leaf.after).then_some((*k, *leaf))
+                    })
+                }
+
+                /// Return an iterator over modified keys.
+                pub fn modified_keys(&self) -> impl Iterator<Item = &'daft K> + '_ {
+                    self.common.iter().filter_map(|(k, leaf)| {
+                        (leaf.before != leaf.after).then_some(*k)
+                    })
+                }
+
+                /// Return an iterator over modified values.
+                pub fn modified_values(&self) -> impl Iterator<Item = Leaf<'daft, V>> + '_ {
+                    self.common.iter().filter_map(|(_, leaf)| {
+                        (leaf.before != leaf.after).then_some(*leaf)
+                    })
+                }
+
+                /// Return an iterator over modified keys and values, performing
+                /// a diff on the values.
+                ///
+                /// This is useful when `V::Diff` is a complex type, not just a
+                /// [`Leaf`].
+                pub fn modified_diff(&self) -> impl Iterator<Item = (&'daft K, V::Diff<'daft>)> + '_
+                where
+                    V: Diffable,
+                {
+                    self.modified().map(|(k, leaf)| (k, leaf.before.diff(&leaf.after)))
+                }
+
+                /// Return an iterator over modified values, performing a diff on
+                /// them.
+                ///
+                /// This is useful when `V::Diff` is a complex type, not just a
+                /// [`Leaf`].
+                pub fn modified_values_diff(&self) -> impl Iterator<Item = V::Diff<'daft>> + '_
+                where
+                    V: Diffable,
+                {
+                    self.modified_values().map(|leaf| leaf.before.diff(&leaf.after))
                 }
             }
 
             // Note: not deriving Default here because we don't want to require
             // K or V to be Default.
-            impl<'daft, K: $key_constraint + Eq, V: Diffable> Default for [<$typ Diff>]<'daft, K, V> {
+            impl<'daft, K: $key_constraint + Eq, V> Default for [<$typ Diff>]<'daft, K, V> {
                 fn default() -> Self {
                     Self::new()
                 }
             }
 
-            impl<
-                 K: $key_constraint + Eq,
-                 V: Diffable + Eq>
-                     $crate::Diffable for $typ<K, V>
+            impl<K: $key_constraint + Eq, V> $crate::Diffable for $typ<K, V>
             {
                 type Diff<'daft> = [<$typ Diff>]<'daft, K, V> where K: 'daft, V: 'daft;
 
@@ -549,11 +728,7 @@ macro_rules! map_diff {
                     let mut diff = [<$typ Diff>]::new();
                     for (k, v) in self {
                         if let Some(other_v) = other.get(k) {
-                            if v != other_v {
-                                diff.modified.insert(k, v.diff(other_v));
-                            } else {
-                                diff.unchanged.insert(k, v);
-                            }
+                            diff.common.insert(k, Leaf { before: v, after: other_v });
                         } else {
                             diff.removed.insert(k, v);
                         }
@@ -585,31 +760,31 @@ macro_rules! set_diff{
          paste! {
 
             #[derive(Debug, PartialEq, Eq)]
-            pub struct [<$typ Diff>]<'daft, K: Diffable>  {
-                pub unchanged: Vec<&'daft K>,
-                pub added: Vec<&'daft K>,
-                pub removed: Vec<&'daft K>,
+            pub struct [<$typ Diff>]<'daft, K: $key_constraint + Eq>  {
+                pub common: $typ<&'daft K>,
+                pub added: $typ<&'daft K>,
+                pub removed: $typ<&'daft K>,
             }
 
-            impl<'daft, K: Diffable> [<$typ Diff>]<'daft, K> {
+            impl<'daft, K: $key_constraint + Eq> [<$typ Diff>]<'daft, K> {
                 pub fn new() -> Self {
                     Self {
-                        unchanged: Vec::new(),
-                        added: Vec::new(),
-                        removed: Vec::new(),
+                        common: $typ::new(),
+                        added: $typ::new(),
+                        removed: $typ::new(),
                     }
                 }
             }
 
             // Note: not deriving Default here because we don't want to require
             // K to be Default.
-            impl<'daft, K: Diffable> Default for [<$typ Diff>]<'daft, K> {
+            impl<'daft, K: $key_constraint + Eq> Default for [<$typ Diff>]<'daft, K> {
                 fn default() -> Self {
                     Self::new()
                 }
             }
 
-            impl<K: $key_constraint + Eq + Diffable>
+            impl<K: $key_constraint + Eq>
                 $crate::Diffable for $typ<K>
             {
                 type Diff<'daft> = [<$typ Diff>]<'daft, K> where K: 'daft;
@@ -618,7 +793,7 @@ macro_rules! set_diff{
                     let mut diff = [<$typ Diff>]::new();
                     diff.removed = self.difference(other).collect();
                     diff.added = other.difference(self).collect();
-                    diff.unchanged = self.intersection(other).collect();
+                    diff.common = self.intersection(other).collect();
                     diff
                 }
             }
@@ -668,22 +843,18 @@ mod tests {
         let expected = BTreeSetDiff {
             added: [&6, &7, &8].into_iter().collect(),
             removed: [&0, &1, &2].into_iter().collect(),
-            unchanged: [&3, &4, &5].into_iter().collect(),
+            common: [&3, &4, &5].into_iter().collect(),
         };
         assert_eq!(expected, changes);
 
         let a: HashSet<_> = [0, 1, 2, 3, 4, 5].into_iter().collect();
         let b: HashSet<_> = [3, 4, 5, 6, 7, 8].into_iter().collect();
-        let mut changes = a.diff(&b);
-        // HashSet output must be sorted for comparison
-        changes.unchanged.sort_unstable();
-        changes.added.sort_unstable();
-        changes.removed.sort_unstable();
+        let changes = a.diff(&b);
 
         let expected = HashSetDiff {
             added: [&6, &7, &8].into_iter().collect(),
             removed: [&0, &1, &2].into_iter().collect(),
-            unchanged: [&3, &4, &5].into_iter().collect(),
+            common: [&3, &4, &5].into_iter().collect(),
         };
         assert_eq!(expected, changes);
     }
@@ -695,12 +866,14 @@ mod tests {
 
         let changes = a.diff(&b);
         let expected = BTreeMapDiff {
-            unchanged: [(&2, &1)].into_iter().collect(),
+            common: [
+                (&0, Leaf { before: &1, after: &2 }),
+                (&2, Leaf { before: &1, after: &1 }),
+            ]
+            .into_iter()
+            .collect(),
             added: [(&3, &1)].into_iter().collect(),
             removed: [(&1, &1)].into_iter().collect(),
-            modified: [(&0, Leaf { before: &1, after: &2 })]
-                .into_iter()
-                .collect(),
         };
 
         assert_eq!(changes, expected);
@@ -710,15 +883,71 @@ mod tests {
 
         let changes = a.diff(&b);
         let expected = HashMapDiff {
-            unchanged: [(&2, &1)].into_iter().collect(),
+            common: [
+                (&0, Leaf { before: &1, after: &2 }),
+                (&2, Leaf { before: &1, after: &1 }),
+            ]
+            .into_iter()
+            .collect(),
             added: [(&3, &1)].into_iter().collect(),
             removed: [(&1, &1)].into_iter().collect(),
-            modified: [(&0, Leaf { before: &1, after: &2 })]
-                .into_iter()
-                .collect(),
         };
 
         assert_eq!(changes, expected);
+
+        // Ensure that keys don't need to be Diffable, and values don't need to
+        // be Eq or Diffable.
+        #[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        struct K(i32);
+
+        #[derive(Debug)]
+        #[expect(dead_code)]
+        struct V(f64);
+
+        {
+            let floats_a: HashMap<K, V> =
+                [(K(0), V(1.0)), (K(1), V(1.0)), (K(2), V(1.0))]
+                    .into_iter()
+                    .collect();
+            let floats_b: HashMap<K, V> =
+                [(K(0), V(2.0)), (K(2), V(1.0)), (K(3), V(1.0))]
+                    .into_iter()
+                    .collect();
+
+            let diff = floats_a.diff(&floats_b);
+            assert_eq!(diff.added.keys().copied().collect::<Vec<_>>(), [&K(3)]);
+            assert_eq!(
+                diff.removed.keys().copied().collect::<Vec<_>>(),
+                [&K(1)]
+            );
+            // HashMaps have non-deterministic order, so they should be sorted
+            // before comparison.
+            let mut common = diff.common.keys().copied().collect::<Vec<_>>();
+            common.sort();
+            assert_eq!(common, [&K(0), &K(2)]);
+        }
+
+        {
+            let floats_a: BTreeMap<K, V> =
+                [(K(0), V(1.0)), (K(1), V(1.0)), (K(2), V(1.0))]
+                    .into_iter()
+                    .collect();
+            let floats_b: BTreeMap<K, V> =
+                [(K(0), V(2.0)), (K(2), V(1.0)), (K(3), V(1.0))]
+                    .into_iter()
+                    .collect();
+
+            let diff = floats_a.diff(&floats_b);
+            assert_eq!(diff.added.keys().copied().collect::<Vec<_>>(), [&K(3)]);
+            assert_eq!(
+                diff.removed.keys().copied().collect::<Vec<_>>(),
+                [&K(1)]
+            );
+            assert_eq!(
+                diff.common.keys().copied().collect::<Vec<_>>(),
+                [&K(0), &K(2)]
+            );
+        }
     }
 
     #[cfg(feature = "uuid1")]
