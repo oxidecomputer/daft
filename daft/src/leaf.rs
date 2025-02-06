@@ -26,6 +26,15 @@ impl<T> Leaf<T> {
     }
 
     /// Convert from `Leaf<T>` or `&Leaf<T>` to `Leaf<&T::Target>`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use daft::Leaf;
+    ///
+    /// let x: Leaf<String> = Leaf { before: "hello".to_owned(), after: "world".to_owned() };
+    /// assert_eq!(x.as_deref(), Leaf { before: "hello", after: "world" });
+    /// ```
     #[inline]
     pub fn as_deref(&self) -> Leaf<&T::Target>
     where
@@ -35,6 +44,21 @@ impl<T> Leaf<T> {
     }
 
     /// Convert from `Leaf<T>` or `&mut Leaf<T>` to `Leaf<&mut T::Target>`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use daft::Leaf;
+    ///
+    /// let mut x: Leaf<String> = Leaf { before: "hello".to_owned(), after: "world".to_owned() };
+    /// assert_eq!(
+    ///     x.as_deref_mut().map(|x| {
+    ///         x.make_ascii_uppercase();
+    ///         x
+    ///     }),
+    ///     Leaf { before: "HELLO".to_owned().as_mut_str(), after: "WORLD".to_owned().as_mut_str() },
+    /// );
+    /// ```
     #[inline]
     pub fn as_deref_mut(&mut self) -> Leaf<&mut T::Target>
     where
@@ -43,22 +67,30 @@ impl<T> Leaf<T> {
         Leaf { before: &mut *self.before, after: &mut *self.after }
     }
 
-    /// Perform a diff on [`before`][Self::before] and [`after`][Self::after],
-    /// returning `T::Diff`.
+    /// Map a `Leaf<T>` to a `Leaf<U>` by applying a function to the `before`
+    /// and `after` values.
     ///
-    /// This is useful when `T::Diff` is not a leaf node.
+    /// `f` will be called twice: first with `before`, then with `after`.
     ///
-    /// # Lifetimes
+    /// # Example
     ///
-    /// The lifetime of the diff is tied to that of `self`. If `T` is a
-    /// reference and you need to extend the lifetime of the diff to that of the
-    /// references, use [`Self::diff_ref_pair`].
+    /// A `Leaf<&str>` can be converted to a `Leaf<String>` by calling `map`
+    /// with `String::from`:
+    ///
+    /// ```
+    /// # #[cfg(feature = "std")] {
+    /// use daft::{Diffable, Leaf};
+    ///
+    /// let before = "hello";
+    /// let after = "world";
+    ///
+    /// let leaf: Leaf<&str> = Leaf { before, after };
+    /// let leaf: Leaf<String> = leaf.map(String::from);
+    /// # }
+    /// ```
     #[inline]
-    pub fn diff_pair(&self) -> T::Diff<'_>
-    where
-        T: Diffable,
-    {
-        self.before.diff(&self.after)
+    pub fn map<U>(self, mut f: impl FnMut(T) -> U) -> Leaf<U> {
+        Leaf { before: f(self.before), after: f(self.after) }
     }
 }
 
@@ -67,13 +99,8 @@ impl<'daft, T: ?Sized + Diffable> Leaf<&'daft T> {
     /// returning `T::Diff`.
     ///
     /// This is useful when `T::Diff` is not a leaf node.
-    ///
-    /// # Lifetimes
-    ///
-    /// This is similar to [`Self::diff_pair`], but it only works on references,
-    /// and it extends the lifetime of the diff to that of the references.
     #[inline]
-    pub fn diff_ref_pair(self) -> T::Diff<'daft> {
+    pub fn diff_pair(self) -> T::Diff<'daft> {
         self.before.diff(self.after)
     }
 }
@@ -102,7 +129,7 @@ impl<T> Leaf<&T> {
     where
         T: Clone,
     {
-        Leaf { before: self.before.clone(), after: self.after.clone() }
+        Leaf { before: self.before.to_owned(), after: self.after.to_owned() }
     }
 
     /// Create a copy of the leaf with owned values.

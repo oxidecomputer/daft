@@ -174,19 +174,25 @@ fn diff_pair_lifetimes() {
         inner: Inner,
     }
 
-    let before = Outer { inner: Inner { a: 5, b: "hello" } };
-    let after = Outer { inner: Inner { a: 6, b: "world" } };
+    let owned: Leaf<String> = {
+        let before = Outer { inner: Inner { a: 5, b: "hello" } };
+        let after = Outer { inner: Inner { a: 6, b: "world" } };
 
-    let diff = before.diff(&after);
-    let inner_diff = {
-        let inner: Leaf<&Inner> = diff.inner;
-        // inner.diff_pair by itself won't outlive inner, but
-        // inner.diff_ref_pair will.
-        inner.diff_ref_pair()
+        let diff = before.diff(&after);
+        let inner_diff = {
+            let inner: Leaf<&Inner> = diff.inner;
+            // Ensure that inner.diff_pair outlives inner.
+            inner.diff_pair()
+        };
+
+        assert_eq!(*inner_diff.a.before, 5);
+        assert_eq!(*inner_diff.a.after, 6);
+        assert_eq!(inner_diff.b.before, "hello");
+        assert_eq!(inner_diff.b.after, "world");
+
+        inner_diff.b.map(str::to_owned)
     };
 
-    assert_eq!(*inner_diff.a.before, 5);
-    assert_eq!(*inner_diff.a.after, 6);
-    assert_eq!(inner_diff.b.before, "hello");
-    assert_eq!(inner_diff.b.after, "world");
+    assert_eq!(owned.before, "hello");
+    assert_eq!(owned.after, "world");
 }

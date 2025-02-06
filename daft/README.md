@@ -22,7 +22,7 @@ use daft::{Diffable, Leaf};
 // Annotate your struct with `#[derive(Diffable)]`:
 struct MyStruct {
     a: i32,
-    b: &'static str,
+    b: String,
 }
 
 // This generates a type called MyStructDiff, which looks like:
@@ -32,8 +32,8 @@ struct MyStructDiff<'daft> {
 }
 
 // Then, with two instances of MyStruct:
-let before = MyStruct { a: 1, b: "hello" };
-let after = MyStruct { a: 2, b: "world" };
+let before = MyStruct { a: 1, b: "hello".to_owned() };
+let after = MyStruct { a: 2, b: "world".to_owned() };
 
 // You can diff them like so:
 let diff = before.diff(&after);
@@ -265,7 +265,7 @@ assert_eq!(
 
 // But you can continue the recursion anyway, since `InnerStruct` implements
 // `Diffable`:
-let inner_diff = diff.inner.diff_ref_pair();
+let inner_diff = diff.inner.diff_pair();
 assert_eq!(
     inner_diff,
     InnerStructDiff { text: Leaf { before: "hello", after: "world" } },

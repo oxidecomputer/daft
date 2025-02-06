@@ -34,10 +34,17 @@ impl<T, U> Diffable for Result<T, U> {
 }
 
 impl<'a, T: Diffable + ?Sized> Diffable for &'a T {
+    // It would be nice to extend the lifetime of the diff to `'a` (e.g. diffing
+    // &'static str`s results in a Leaf<&'static str>), and it does actually
+    // work for that simpler case, but rustc (1.84.1) complains about cases with
+    // multiple references like &'a &'b T (see complex-lifetimes.rs for an
+    // example). This is probably a bug in rustc: see
+    // https://gist.github.com/sunshowers/25fcc2f590f1c6b19daa99e11e927dc7 for
+    // the error with Rust 1.84.1.
     type Diff<'daft>
         = <T as Diffable>::Diff<'daft>
     where
-        &'a T: 'daft;
+        'a: 'daft;
 
     fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
         (**self).diff(other)
