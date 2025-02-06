@@ -90,7 +90,7 @@ fn make_leaf_for_enum(input: &DeriveInput) -> TokenStream {
     quote! {
         impl #impl_gen #daft_crate::Diffable for #ident #ty_gen #where_clause
         {
-            type Diff<#daft_lt> = #daft_crate::Leaf<#daft_lt, Self> where Self: #daft_lt;
+            type Diff<#daft_lt> = #daft_crate::Leaf<&#daft_lt Self> where Self: #daft_lt;
 
             fn diff<#daft_lt>(&#daft_lt self, other: &#daft_lt Self) -> Self::Diff<#daft_lt> {
                 #daft_crate::Leaf {before: self, after: other}
@@ -323,7 +323,7 @@ impl DiffFields {
 
         f.ty = if has_leaf_attr(&f) {
             parse_quote! {
-                #daft_crate::Leaf<#lt, #ty>
+                #daft_crate::Leaf<&#lt #ty>
             }
         } else {
             parse_quote! {

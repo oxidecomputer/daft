@@ -1,8 +1,8 @@
 struct WithAttrsDiff<'__daft> {
     a: <i32 as ::daft::Diffable>::Diff<'__daft>,
     b: <BTreeMap<Uuid, BTreeSet<usize>> as ::daft::Diffable>::Diff<'__daft>,
-    d: ::daft::Leaf<'__daft, Lazy>,
-    e: ::daft::Leaf<'__daft, usize>,
+    d: ::daft::Leaf<&'__daft Lazy>,
+    e: ::daft::Leaf<&'__daft usize>,
     f: <usize as ::daft::Diffable>::Diff<'__daft>,
 }
 impl<'__daft> ::std::fmt::Debug for WithAttrsDiff<'__daft>
@@ -12,8 +12,8 @@ where
         Uuid,
         BTreeSet<usize>,
     > as ::daft::Diffable>::Diff<'__daft>: ::std::fmt::Debug,
-    ::daft::Leaf<'__daft, Lazy>: ::std::fmt::Debug,
-    ::daft::Leaf<'__daft, usize>: ::std::fmt::Debug,
+    ::daft::Leaf<&'__daft Lazy>: ::std::fmt::Debug,
+    ::daft::Leaf<&'__daft usize>: ::std::fmt::Debug,
     <usize as ::daft::Diffable>::Diff<'__daft>: ::std::fmt::Debug,
 {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
@@ -33,8 +33,8 @@ where
         Uuid,
         BTreeSet<usize>,
     > as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::PartialEq,
-    ::daft::Leaf<'__daft, Lazy>: ::std::cmp::PartialEq,
-    ::daft::Leaf<'__daft, usize>: ::std::cmp::PartialEq,
+    ::daft::Leaf<&'__daft Lazy>: ::std::cmp::PartialEq,
+    ::daft::Leaf<&'__daft usize>: ::std::cmp::PartialEq,
     <usize as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
@@ -46,8 +46,8 @@ impl<'__daft> ::std::cmp::Eq for WithAttrsDiff<'__daft>
 where
     <i32 as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::Eq,
     <BTreeMap<Uuid, BTreeSet<usize>> as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::Eq,
-    ::daft::Leaf<'__daft, Lazy>: ::std::cmp::Eq,
-    ::daft::Leaf<'__daft, usize>: ::std::cmp::Eq,
+    ::daft::Leaf<&'__daft Lazy>: ::std::cmp::Eq,
+    ::daft::Leaf<&'__daft usize>: ::std::cmp::Eq,
     <usize as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::Eq,
 {}
 impl ::daft::Diffable for WithAttrs {
