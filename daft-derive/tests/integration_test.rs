@@ -62,15 +62,15 @@ fn test_basic() {
     assert_eq!(diff.a.before, diff.a.after);
     assert_eq!(diff.b.before, &SomeEnum::C(4));
     assert_eq!(diff.b.after, &SomeEnum::B);
-    assert_eq!(diff.c.unchanged.len(), 0);
+    assert_eq!(diff.c.unchanged().count(), 0);
     assert_eq!(diff.c.added.len(), 1);
     assert_eq!(diff.c.removed.len(), 0);
-    assert_eq!(diff.c.modified.len(), 1);
+    assert_eq!(diff.c.modified().count(), 1);
 
-    let set_diff = &diff.c.modified.iter().next().unwrap().1;
-    assert_eq!(set_diff.unchanged, vec![&1, &2, &4, &5]);
-    assert_eq!(set_diff.added, vec![&6]);
-    assert_eq!(set_diff.removed, vec![&3]);
+    let set_diff = &diff.c.modified_diff().next().unwrap().1;
+    assert_eq!(set_diff.common, [&1, &2, &4, &5].into_iter().collect());
+    assert_eq!(set_diff.added, [&6].into_iter().collect());
+    assert_eq!(set_diff.removed, [&3].into_iter().collect());
 
     assert_eq!(diff.d.a.before, &0);
     assert_eq!(diff.d.a.after, &1);
@@ -147,8 +147,8 @@ fn test_struct_with_generics() {
     };
     let diff = x.diff(&y);
 
-    assert_eq!(diff.a.unchanged.len(), 0);
-    assert_eq!(diff.a.modified.len(), 1);
+    assert_eq!(diff.a.unchanged().count(), 0);
+    assert_eq!(diff.a.modified().count(), 1);
     assert_eq!(diff.a.added.len(), 0);
     assert_eq!(diff.a.removed.len(), 0);
     assert_eq!(diff.b.before, diff.b.after);
