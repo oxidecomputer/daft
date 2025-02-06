@@ -91,7 +91,7 @@ mod tests {
         let after = &&&&&&"world";
 
         // This should automatically dereference the references.
-        let diff: Leaf<'_, str> = before.diff(&after);
+        let diff: Leaf<'_, str> = before.diff(after);
         assert_eq!(diff.before, ******before);
         assert_eq!(diff.after, ******after);
     }
