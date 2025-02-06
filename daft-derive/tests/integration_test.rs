@@ -68,9 +68,9 @@ fn test_basic() {
     assert_eq!(diff.c.modified().count(), 1);
 
     let set_diff = &diff.c.modified_diff().next().unwrap().1;
-    assert_eq!(set_diff.common, vec![&1, &2, &4, &5]);
-    assert_eq!(set_diff.added, vec![&6]);
-    assert_eq!(set_diff.removed, vec![&3]);
+    assert_eq!(set_diff.common, [&1, &2, &4, &5].into_iter().collect());
+    assert_eq!(set_diff.added, [&6].into_iter().collect());
+    assert_eq!(set_diff.removed, [&3].into_iter().collect());
 
     assert_eq!(diff.d.a.before, &0);
     assert_eq!(diff.d.a.after, &1);

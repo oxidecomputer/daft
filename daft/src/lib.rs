@@ -184,9 +184,9 @@
 //! let b: BTreeSet<i32> = [3, 4, 5, 6, 7, 8].into_iter().collect();
 //! let diff: BTreeSetDiff<'_, i32> = a.diff(&b);
 //!
-//! assert_eq!(diff.common, [&3, &4, &5].into_iter().collect::<Vec<_>>());
-//! assert_eq!(diff.added, [&6, &7, &8].into_iter().collect::<Vec<_>>());
-//! assert_eq!(diff.removed, [&0, &1, &2].into_iter().collect::<Vec<_>>());
+//! assert_eq!(diff.common, [&3, &4, &5].into_iter().collect());
+//! assert_eq!(diff.added, [&6, &7, &8].into_iter().collect());
+//! assert_eq!(diff.removed, [&0, &1, &2].into_iter().collect());
 //! ```
 //!
 //! ### Recursive diffs
@@ -760,25 +760,25 @@ macro_rules! set_diff{
          paste! {
 
             #[derive(Debug, PartialEq, Eq)]
-            pub struct [<$typ Diff>]<'daft, K>  {
-                pub common: Vec<&'daft K>,
-                pub added: Vec<&'daft K>,
-                pub removed: Vec<&'daft K>,
+            pub struct [<$typ Diff>]<'daft, K: $key_constraint + Eq>  {
+                pub common: $typ<&'daft K>,
+                pub added: $typ<&'daft K>,
+                pub removed: $typ<&'daft K>,
             }
 
-            impl<'daft, K> [<$typ Diff>]<'daft, K> {
+            impl<'daft, K: $key_constraint + Eq> [<$typ Diff>]<'daft, K> {
                 pub fn new() -> Self {
                     Self {
-                        common: Vec::new(),
-                        added: Vec::new(),
-                        removed: Vec::new(),
+                        common: $typ::new(),
+                        added: $typ::new(),
+                        removed: $typ::new(),
                     }
                 }
             }
 
             // Note: not deriving Default here because we don't want to require
             // K to be Default.
-            impl<'daft, K> Default for [<$typ Diff>]<'daft, K> {
+            impl<'daft, K: $key_constraint + Eq> Default for [<$typ Diff>]<'daft, K> {
                 fn default() -> Self {
                     Self::new()
                 }
@@ -849,11 +849,7 @@ mod tests {
 
         let a: HashSet<_> = [0, 1, 2, 3, 4, 5].into_iter().collect();
         let b: HashSet<_> = [3, 4, 5, 6, 7, 8].into_iter().collect();
-        let mut changes = a.diff(&b);
-        // HashSet output must be sorted for comparison
-        changes.common.sort_unstable();
-        changes.added.sort_unstable();
-        changes.removed.sort_unstable();
+        let changes = a.diff(&b);
 
         let expected = HashSetDiff {
             added: [&6, &7, &8].into_iter().collect(),
