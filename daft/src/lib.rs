@@ -349,11 +349,19 @@ pub trait Diffable {
 /// A primitive or atomic change.
 ///
 /// For more information, see the [crate-level documentation](crate).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Leaf<'daft, T: ?Sized> {
     pub before: &'daft T,
     pub after: &'daft T,
 }
+
+// Hand-implement Clone and Copy so that it doesn't require T: Copy.
+impl<T: ?Sized> Clone for Leaf<'_, T> {
+    fn clone(&self) -> Self {
+        Self { before: self.before, after: self.after }
+    }
+}
+impl<T: ?Sized> Copy for Leaf<'_, T> {}
 
 #[macro_export]
 macro_rules! leaf{
