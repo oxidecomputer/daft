@@ -199,7 +199,36 @@ assert_eq!(diff.added, [&6, &7, &8].into_iter().collect());
 assert_eq!(diff.removed, [&0, &1, &2].into_iter().collect());
 ````
 
-#### Recursive diffs
+#### Tuple diffs
+
+For a tuple like `(A, B, C)`, the [`Diffable`](https://docs.rs/daft/0.1.0/daft/diffable/trait.Diffable.html) implementation is recursive:
+the diff resolves to `(A::Diff, B::Diff, C::Diff)`.
+
+##### Example
+
+````rust
+use daft::{BTreeSetDiff, Diffable, Leaf};
+use std::collections::BTreeSet;
+
+let before: (usize, String, BTreeSet<usize>) = (1, "hello".to_owned(), [1, 2, 3].into_iter().collect());
+let after = (2, "world".to_owned(), [2, 3, 4].into_iter().collect());
+
+let diff = before.diff(&after);
+assert_eq!(
+    diff,
+    (
+        Leaf { before: &1, after: &2 },
+        Leaf { before: "hello", after: "world" },
+        BTreeSetDiff {
+            common: [&2, &3].into_iter().collect(),
+            added: [&4].into_iter().collect(),
+            removed: [&1].into_iter().collect(),
+        }
+    ),
+);
+````
+
+#### Struct diffs
 
 For structs, the \[`Diffable`\]\[macro@Diffable\] derive macro generates
 a diff type with a field corresponding to each field type. Each field must
