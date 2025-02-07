@@ -1,6 +1,6 @@
 //! Implementations for types from the `alloc` crate.
 
-use crate::{leaf, Diffable, Leaf};
+use crate::{Diffable, Leaf};
 use alloc::{
     borrow::{Cow, ToOwned},
     boxed::Box,
@@ -11,7 +11,7 @@ use alloc::{
     vec::Vec,
 };
 
-leaf! { String }
+leaf_deref! { String => str }
 
 impl<T: Diffable + ?Sized> Diffable for Box<T> {
     type Diff<'daft>
@@ -65,7 +65,7 @@ set_diff!((BTreeSet, Ord));
 // We plan to add opt in diff functionality: set-like, reordered, etc...
 impl<T: Diffable> Diffable for Vec<T> {
     type Diff<'daft>
-        = Leaf<'daft, Vec<T>>
+        = Leaf<&'daft [T]>
     where
         T: 'daft;
 

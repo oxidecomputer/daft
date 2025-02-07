@@ -8,7 +8,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-leaf! { PathBuf, Path, OsString, OsStr }
+leaf! { Path, OsStr }
+leaf_deref! { PathBuf => Path, OsString => OsStr }
 
 map_diff!((HashMap, Hash));
 set_diff!((HashSet, Hash));

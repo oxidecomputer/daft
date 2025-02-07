@@ -7,30 +7,38 @@
 //! macro][macro@Diffable] by the same name. This trait represents the
 //! notion of a type for which two members can be simultaneously compared.
 //!
+//! # Features
+//!
+//! - **Recursive diffing** of structs, sets, and maps
+//! - **Derive macro** for automatically generating diff types
+//! - Choose between **eager** and **lazy** diffing
+//! - **No-std compatible**, both with and without `alloc`
+//!
 //! # Usage
 //!
 //! ```rust
+//! # #[cfg(feature = "std")] {
 //! use daft::{Diffable, Leaf};
 //!
 //! // Annotate your struct with `#[derive(Diffable)]`:
 //! #[derive(Diffable)]
 //! struct MyStruct {
 //!     a: i32,
-//!     b: &'static str,
+//!     b: String,
 //! }
 //!
 //! // This generates a type called MyStructDiff, which looks like:
 //! # /*
 //! #[automatically_derived]
 //! struct MyStructDiff<'daft> {
-//!     a: Leaf<'daft, i32>,
-//!     b: Leaf<'daft, &'static str>,
+//!     a: Leaf<&'daft i32>,
+//!     b: Leaf<&'daft str>,
 //! }
 //! # */
 //!
 //! // Then, with two instances of MyStruct:
-//! let before = MyStruct { a: 1, b: "hello" };
-//! let after = MyStruct { a: 2, b: "world" };
+//! let before = MyStruct { a: 1, b: "hello".to_owned() };
+//! let after = MyStruct { a: 2, b: "world".to_owned() };
 //!
 //! // You can diff them like so:
 //! let diff = before.diff(&after);
@@ -40,6 +48,7 @@
 //! assert_eq!(*diff.a.after, 2);
 //! assert_eq!(diff.b.before, "hello");
 //! assert_eq!(diff.b.after, "world");
+//! # }
 //! ```
 //!
 //! This crate assigns one side the name *before*, and the other side *after*.
@@ -69,7 +78,7 @@
 //! ```rust
 //! use daft::{Diffable, Leaf};
 //!
-//! let diff: Leaf<'_, i32> = 1_i32.diff(&2);
+//! let diff: Leaf<&i32> = 1_i32.diff(&2);
 //! assert_eq!(*diff.before, 1);
 //! assert_eq!(*diff.after, 2);
 //! ```
@@ -80,9 +89,9 @@
 //! use daft::{Diffable, Leaf};
 //!
 //! // Option<T> uses Leaf:
-//! let diff: Leaf<'_, Option<i32>> = Some(1_i32).diff(&Some(2));
-//! assert_eq!(*diff.before, Some(1));
-//! assert_eq!(*diff.after, Some(2));
+//! let diff: Leaf<Option<&i32>> = Some(1_i32).diff(&Some(2));
+//! assert_eq!(diff.before, Some(&1));
+//! assert_eq!(diff.after, Some(&2));
 //!
 //! // Automatically derived enums also use Leaf:
 //! #[derive(Debug, PartialEq, Eq, Diffable)]
@@ -94,7 +103,7 @@
 //! let before = MyEnum::A(1);
 //! let after = MyEnum::B("hello".to_string());
 //!
-//! let diff: Leaf<'_, MyEnum> = before.diff(&after);
+//! let diff: Leaf<&MyEnum> = before.diff(&after);
 //! assert_eq!(diff.before, &before);
 //! assert_eq!(diff.after, &after);
 //! ```
@@ -107,7 +116,7 @@
 //!
 //! let before = vec![1, 2, 3];
 //! let after = vec![4, 5, 6];
-//! let diff: Leaf<'_, Vec<i32>> = before.diff(&after);
+//! let diff: Leaf<&[i32]> = before.diff(&after);
 //! assert_eq!(diff.before, &before);
 //! assert_eq!(diff.after, &after);
 //! # }
@@ -303,7 +312,7 @@
 //! struct Identifier(String);
 //!
 //! impl Diffable for Identifier {
-//!     type Diff<'daft> = Leaf<'daft, Self>;
+//!     type Diff<'daft> = Leaf<&'daft Self>;
 //!
 //!     fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
 //!         Leaf {

@@ -158,3 +158,42 @@ fn test_struct_with_generics() {
 
     println!("{diff:#?}");
 }
+
+#[test]
+fn diff_pair_lifetimes() {
+    // Complex type to ensure lifetimes are correct.
+    #[derive(Diffable)]
+    struct Inner {
+        a: u32,
+        b: &'static str,
+    }
+
+    #[derive(Diffable)]
+    struct Outer {
+        #[daft(leaf)]
+        inner: Inner,
+    }
+
+    let owned: Leaf<String> = {
+        let before = Outer { inner: Inner { a: 5, b: "hello" } };
+        let after = Outer { inner: Inner { a: 6, b: "world" } };
+
+        let diff = before.diff(&after);
+        let inner_diff = {
+            let inner: Leaf<&Inner> = diff.inner;
+            // Ensure that inner.diff_pair outlives inner.
+            inner.diff_pair()
+        };
+
+        assert_eq!(*inner_diff.a.before, 5);
+        assert_eq!(*inner_diff.a.after, 6);
+        assert_eq!(inner_diff.b.before, "hello");
+        assert_eq!(inner_diff.b.after, "world");
+
+        // The return value of this will outlive before and after as well.
+        inner_diff.b.map(str::to_owned)
+    };
+
+    assert_eq!(owned.before, "hello");
+    assert_eq!(owned.after, "world");
+}

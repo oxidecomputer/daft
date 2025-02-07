@@ -13,31 +13,38 @@ leaf! { str }
 
 impl<T> Diffable for Option<T> {
     type Diff<'daft>
-        = Leaf<'daft, Option<T>>
+        = Leaf<Option<&'daft T>>
     where
         T: 'daft;
 
     fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
-        Leaf { before: self, after: other }
+        Leaf { before: self.as_ref(), after: other.as_ref() }
     }
 }
 
 impl<T, U> Diffable for Result<T, U> {
     type Diff<'daft>
-        = Leaf<'daft, Result<T, U>>
+        = Leaf<Result<&'daft T, &'daft U>>
     where
         T: 'daft,
         U: 'daft;
     fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
-        Leaf { before: self, after: other }
+        Leaf { before: self.as_ref(), after: other.as_ref() }
     }
 }
 
 impl<'a, T: Diffable + ?Sized> Diffable for &'a T {
+    // It would be nice to extend the lifetime of the diff to `'a` (e.g. diffing
+    // &'static str`s results in a Leaf<&'static str>), and it does actually
+    // work for that simpler case, but rustc (1.84.1) complains about cases with
+    // multiple references like &'a &'b T (see complex-lifetimes.rs for an
+    // example). This is probably a bug in rustc: see
+    // https://gist.github.com/sunshowers/25fcc2f590f1c6b19daa99e11e927dc7 for
+    // the error with Rust 1.84.1.
     type Diff<'daft>
         = <T as Diffable>::Diff<'daft>
     where
-        &'a T: 'daft;
+        'a: 'daft;
 
     fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
         (**self).diff(other)
@@ -48,7 +55,7 @@ impl<'a, T: Diffable + ?Sized> Diffable for &'a T {
 // a leaf node that can be recursively diffed.
 impl<T: ?Sized> Diffable for RefCell<T> {
     type Diff<'daft>
-        = Leaf<'daft, Self>
+        = Leaf<&'daft Self>
     where
         T: 'daft;
 
@@ -59,7 +66,7 @@ impl<T: ?Sized> Diffable for RefCell<T> {
 
 impl<T: ?Sized> Diffable for PhantomData<T> {
     type Diff<'daft>
-        = Leaf<'daft, PhantomData<T>>
+        = Leaf<&'daft PhantomData<T>>
     where
         Self: 'daft;
 
@@ -71,7 +78,7 @@ impl<T: ?Sized> Diffable for PhantomData<T> {
 /// Treat slices as leaf nodes.
 impl<T: Diffable> Diffable for [T] {
     type Diff<'daft>
-        = Leaf<'daft, [T]>
+        = Leaf<&'daft [T]>
     where
         T: 'daft;
 
@@ -91,7 +98,7 @@ mod tests {
         let after = &&&&&&"world";
 
         // This should automatically dereference the references.
-        let diff: Leaf<'_, str> = before.diff(after);
+        let diff: Leaf<&str> = before.diff(after);
         assert_eq!(diff.before, ******before);
         assert_eq!(diff.after, ******after);
     }

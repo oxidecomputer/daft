@@ -5,7 +5,7 @@ macro_rules! leaf {
     ($($typ:ty),*) => {
         $(
             impl $crate::Diffable for $typ {
-                type Diff<'daft> = $crate::Leaf<'daft, Self>;
+                type Diff<'daft> = $crate::Leaf<&'daft Self>;
 
                 fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
                     $crate::Leaf {
@@ -16,6 +16,24 @@ macro_rules! leaf {
             }
         )*
     }
+}
+
+#[cfg(feature = "alloc")]
+macro_rules! leaf_deref {
+    ($($typ:ty => $target:ty),*) => {
+        $(
+            impl $crate::Diffable for $typ {
+                type Diff<'daft> = $crate::Leaf<&'daft $target>;
+
+                fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
+                    $crate::Leaf {
+                        before: &**self,
+                        after: &**other
+                    }
+                }
+            }
+        )*
+    };
 }
 
 /// Create a type `<MapType>Diff` and `impl Diffable` on it.
@@ -29,7 +47,7 @@ macro_rules! map_diff {
 
             #[derive(Debug, PartialEq, Eq)]
             pub struct [<$typ Diff>]<'daft, K: $key_constraint + Eq, V> {
-                pub common: $typ<&'daft K, $crate::Leaf<'daft, V>>,
+                pub common: $typ<&'daft K, $crate::Leaf<&'daft V>>,
                 pub added: $typ<&'daft K, &'daft V>,
                 pub removed: $typ<&'daft K, &'daft V>,
             }
@@ -67,7 +85,7 @@ macro_rules! map_diff {
                 }
 
                 /// Return an iterator over modified keys and values.
-                pub fn modified(&self) -> impl Iterator<Item = (&'daft K, $crate::Leaf<'daft, V>)> + '_ {
+                pub fn modified(&self) -> impl Iterator<Item = (&'daft K, $crate::Leaf<&'daft V>)> + '_ {
                     self.common.iter().filter_map(|(k, leaf)| {
                         (leaf.before != leaf.after).then_some((*k, *leaf))
                     })
@@ -81,7 +99,7 @@ macro_rules! map_diff {
                 }
 
                 /// Return an iterator over modified values.
-                pub fn modified_values(&self) -> impl Iterator<Item = $crate::Leaf<'daft, V>> + '_ {
+                pub fn modified_values(&self) -> impl Iterator<Item = $crate::Leaf<&'daft V>> + '_ {
                     self.common.iter().filter_map(|(_, leaf)| {
                         (leaf.before != leaf.after).then_some(*leaf)
                     })
