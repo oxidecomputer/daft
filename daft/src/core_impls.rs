@@ -1,6 +1,6 @@
 //! Implementations for core types.
 
-use crate::{leaf, Diffable, Leaf};
+use crate::{Diffable, Leaf};
 use core::{
     cell::RefCell,
     marker::PhantomData,

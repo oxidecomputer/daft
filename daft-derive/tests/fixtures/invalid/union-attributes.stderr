@@ -1,0 +1,23 @@
+error: this is unnecessary: the Diffable implementation for unions is always a leaf
+ --> tests/fixtures/invalid/union-attributes.rs:4:8
+  |
+4 | #[daft(leaf)]
+  |        ^^^^
+
+error: daft attributes are not allowed on union fields
+ --> tests/fixtures/invalid/union-attributes.rs:6:5
+  |
+6 |     #[daft(leaf)]
+  |     ^^^^^^^^^^^^^
+
+error: daft attributes are not allowed on union fields
+ --> tests/fixtures/invalid/union-attributes.rs:8:5
+  |
+8 |     #[daft(ignore)]
+  |     ^^^^^^^^^^^^^^^
+
+error: daft attributes are not allowed on unions
+  --> tests/fixtures/invalid/union-attributes.rs:13:8
+   |
+13 | #[daft(ignore)]
+   |        ^^^^^^
