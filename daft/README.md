@@ -237,9 +237,19 @@ implement [`Diffable`](https://docs.rs/daft/0.1.0/daft/diffable/trait.Diffable.h
 A struct `Foo` gets a corresponding `FooDiff` struct, which has fields
 corresponding to each field in `Foo`.
 
-Structs can be annotated with `#[daft(leaf)]` to treat the field as a leaf
-node, regardless of the field’s `Diff` type or even whether it implements
-[`Diffable`](https://docs.rs/daft/0.1.0/daft/diffable/trait.Diffable.html).
+##### Struct options
+
+* `#[daft(leaf)]`: if a **struct** is annotated with this, the [`Diffable`](https://docs.rs/daft/0.1.0/daft/diffable/trait.Diffable.html)
+  implementation for the struct will be a [`Leaf`](https://docs.rs/daft/0.1.0/daft/leaf/struct.Leaf.html) instead of a recursive
+  diff.
+
+##### Field options
+
+* `#[daft(leaf)]`: if a  **struct field** is annotated with this, the generated
+  struct’s corresponding field will be a [`Leaf`](https://docs.rs/daft/0.1.0/daft/leaf/struct.Leaf.html), regardless of the field’s
+  `Diff` type (or even whether it implements [`Diffable`](https://docs.rs/daft/0.1.0/daft/diffable/trait.Diffable.html) at all).
+* `#[daft(ignore)]`: the generated struct’s corresponding field is not included
+  in the diff.
 
 ##### Example
 
@@ -263,7 +273,24 @@ assert_eq!(*diff.1.before, 1);
 assert_eq!(*diff.1.after, 2);
 ````
 
-An example with `#[daft(leaf)]`:
+An example with `#[daft(leaf)]` on **structs**:
+
+````rust
+use daft::{Diffable, Leaf};
+
+struct MyStruct {
+    a: i32,
+}
+
+let before = MyStruct { a: 1 };
+let after = MyStruct { a: 2 };
+let diff: Leaf<&MyStruct> = before.diff(&after);
+
+assert_eq!(diff.before.a, 1);
+assert_eq!(diff.after.a, 2);
+````
+
+An example with `#[daft(leaf)]` on **struct fields**:
 
 ````rust
 use daft::{Diffable, Leaf};
