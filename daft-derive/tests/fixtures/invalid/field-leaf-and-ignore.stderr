@@ -1,0 +1,11 @@
+error: #[daft(ignore)] conflicts with other attributes
+ --> tests/fixtures/invalid/field-leaf-and-ignore.rs:6:18
+  |
+6 |     #[daft(leaf, ignore)]
+  |                  ^^^^^^
+
+error: #[daft(leaf)] conflicts with other attributes
+ --> tests/fixtures/invalid/field-leaf-and-ignore.rs:9:12
+  |
+9 |     #[daft(leaf)]
+  |            ^^^^

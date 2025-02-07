@@ -205,7 +205,38 @@
 //! # }
 //! ```
 //!
-//! ### Recursive diffs
+//! ### Tuple diffs
+//!
+//! For a tuple like `(A, B, C)`, the [`Diffable`] implementation is recursive:
+//! the diff resolves to `(A::Diff, B::Diff, C::Diff)`.
+//!
+//! #### Example
+//!
+//! ```rust
+//! # #[cfg(feature = "std")] {
+//! use daft::{BTreeSetDiff, Diffable, Leaf};
+//! use std::collections::BTreeSet;
+//!
+//! let before: (usize, String, BTreeSet<usize>) = (1, "hello".to_owned(), [1, 2, 3].into_iter().collect());
+//! let after = (2, "world".to_owned(), [2, 3, 4].into_iter().collect());
+//!
+//! let diff = before.diff(&after);
+//! assert_eq!(
+//!     diff,
+//!     (
+//!         Leaf { before: &1, after: &2 },
+//!         Leaf { before: "hello", after: "world" },
+//!         BTreeSetDiff {
+//!             common: [&2, &3].into_iter().collect(),
+//!             added: [&4].into_iter().collect(),
+//!             removed: [&1].into_iter().collect(),
+//!         }
+//!     ),
+//! );
+//! # }
+//! ```
+//!
+//! ### Struct diffs
 //!
 //! For structs, the [`Diffable`][macro@Diffable] derive macro generates
 //! a diff type with a field corresponding to each field type. Each field must
@@ -214,9 +245,19 @@
 //! A struct `Foo` gets a corresponding `FooDiff` struct, which has fields
 //! corresponding to each field in `Foo`.
 //!
-//! Structs can be annotated with `#[daft(leaf)]` to treat the field as a leaf
-//! node, regardless of the field's `Diff` type or even whether it implements
-//! [`Diffable`].
+//! #### Struct options
+//!
+//! * `#[daft(leaf)]`: if a **struct** is annotated with this, the [`Diffable`]
+//!   implementation for the struct will be a [`Leaf`] instead of a recursive
+//!   diff.
+//!
+//! #### Field options
+//!
+//! * `#[daft(leaf)]`: if a  **struct field** is annotated with this, the generated
+//!   struct's corresponding field will be a [`Leaf`], regardless of the field's
+//!   `Diff` type (or even whether it implements [`Diffable`] at all).
+//! * `#[daft(ignore)]`: the generated struct's corresponding field is not included
+//!   in the diff.
 //!
 //! #### Example
 //!
@@ -243,7 +284,26 @@
 //! # }
 //! ```
 //!
-//! An example with `#[daft(leaf)]`:
+//! An example with `#[daft(leaf)]` on **structs**:
+//!
+//! ```rust
+//! use daft::{Diffable, Leaf};
+//!
+//! #[derive(Diffable)]
+//! #[daft(leaf)]
+//! struct MyStruct {
+//!     a: i32,
+//! }
+//!
+//! let before = MyStruct { a: 1 };
+//! let after = MyStruct { a: 2 };
+//! let diff: Leaf<&MyStruct> = before.diff(&after);
+//!
+//! assert_eq!(diff.before.a, 1);
+//! assert_eq!(diff.after.a, 2);
+//! ```
+//!
+//! An example with `#[daft(leaf)]` on **struct fields**:
 //!
 //! ```rust
 //! use daft::{Diffable, Leaf};

@@ -1,6 +1,5 @@
 //! Macros for internal implementations.
 
-#[macro_export]
 macro_rules! leaf {
     ($($typ:ty),*) => {
         $(
