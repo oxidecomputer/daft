@@ -87,6 +87,35 @@ impl<T: Diffable> Diffable for [T] {
     }
 }
 
+macro_rules! tuple_diffable {
+    ($(($($name:ident $ix:tt),+)),+) => {
+        $(
+            impl<$($name: Diffable),+> Diffable for ($($name,)+) {
+                type Diff<'daft> = ($($name::Diff<'daft>,)+)
+                where
+                    $($name: 'daft,)+;
+
+                fn diff<'daft>(&'daft self, other: &'daft Self) -> Self::Diff<'daft> {
+                    ($(self.$ix.diff(&other.$ix),)+)
+                }
+            }
+        )+
+    }
+}
+
+tuple_diffable! {
+    (A 0),
+    (A 0, B 1),
+    (A 0, B 1, C 2),
+    (A 0, B 1, C 2, D 3),
+    (A 0, B 1, C 2, D 3, E 4),
+    (A 0, B 1, C 2, D 3, E 4, F 5),
+    (A 0, B 1, C 2, D 3, E 4, F 5, G 6),
+    (A 0, B 1, C 2, D 3, E 4, F 5, G 6, H 7),
+    (A 0, B 1, C 2, D 3, E 4, F 5, G 6, H 7, I 8),
+    (A 0, B 1, C 2, D 3, E 4, F 5, G 6, H 7, I 8, J 9)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -101,5 +130,21 @@ mod tests {
         let diff: Leaf<&str> = before.diff(after);
         assert_eq!(diff.before, ******before);
         assert_eq!(diff.after, ******after);
+    }
+
+    #[test]
+    fn tuple_diffable() {
+        let before = (1usize, 2usize, 3usize);
+        let after = (4, 5, 6);
+
+        let diff = before.diff(&after);
+        assert_eq!(
+            diff,
+            (
+                Leaf { before: &1, after: &4 },
+                Leaf { before: &2, after: &5 },
+                Leaf { before: &3, after: &6 },
+            )
+        );
     }
 }
