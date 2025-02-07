@@ -1,0 +1,35 @@
+error: this is unnecessary: the Diffable implementation for enums is always a leaf
+ --> tests/fixtures/invalid/enum-attributes.rs:4:8
+  |
+4 | #[daft(leaf)]
+  |        ^^^^
+
+error: daft attributes are not allowed on enum variants
+ --> tests/fixtures/invalid/enum-attributes.rs:6:5
+  |
+6 |     #[daft(leaf)]
+  |     ^^^^^^^^^^^^^
+
+error: daft attributes are not allowed on enum variant fields
+ --> tests/fixtures/invalid/enum-attributes.rs:7:7
+  |
+7 |     A(#[daft(ignore)] i32),
+  |       ^^^^^^^^^^^^^^^
+
+error: daft attributes are not allowed on enum variants
+ --> tests/fixtures/invalid/enum-attributes.rs:8:5
+  |
+8 |     #[daft(leaf)]
+  |     ^^^^^^^^^^^^^
+
+error: daft attributes are not allowed on enum variant fields
+  --> tests/fixtures/invalid/enum-attributes.rs:10:9
+   |
+10 |         #[daft(ignore)]
+   |         ^^^^^^^^^^^^^^^
+
+error: daft attributes are not allowed on enums
+  --> tests/fixtures/invalid/enum-attributes.rs:16:8
+   |
+16 | #[daft(ignore)]
+   |        ^^^^^^
