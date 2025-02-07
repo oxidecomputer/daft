@@ -116,10 +116,11 @@ assert_eq!(diff.after, &after);
 #### Map diffs
 
 For [`BTreeMap`](https://doc.rust-lang.org/nightly/alloc/collections/btree/map/struct.BTreeMap.html) and [`HashMap`](https://doc.rust-lang.org/nightly/std/collections/hash/map/struct.HashMap.html), daft has corresponding [`BTreeMapDiff`](https://docs.rs/daft/0.1.0/daft/struct.BTreeMapDiff.html)
-and [`HashMapDiff`](https://docs.rs/daft/0.1.0/daft/struct.HashMapDiff.html) types. These types have fields for *unchanged*, *added*,
-*removed*, and *modified* entries.
+and [`HashMapDiff`](https://docs.rs/daft/0.1.0/daft/struct.HashMapDiff.html) types. These types have fields for *common*, *added*,
+and *removed* entries.
 
-Map diffs are performed eagerly.
+Map diffs are performed eagerly for keys, but values are stored as leaf
+nodes.
 
 ##### Example
 
@@ -139,23 +140,40 @@ b.insert(4, "four");
 
 let diff: BTreeMapDiff<'_, i32, &str> = a.diff(&b);
 
-// Unchanged, added, and removed entries are stored as maps:
-assert_eq!(diff.unchanged, [(&2, &"two")].into_iter().collect());
+// Added and removed entries are stored as maps:
 assert_eq!(diff.added, [(&4, &"four")].into_iter().collect());
 assert_eq!(diff.removed, [(&1, &"one")].into_iter().collect());
 
-// Modified entries are stored via the values' diff types:
+// Common entries are stored as leaf nodes.
 assert_eq!(
-    diff.modified,
-    [(&3, Leaf { before: "three", after: "THREE" })].into_iter().collect(),
+    diff.common,
+    [
+        (&2, Leaf { before: &"two", after: &"two" }),
+        (&3, Leaf { before: &"three", after: &"THREE" })
+    ]
+    .into_iter().collect(),
+);
+
+// If `V` implements `Eq`, unchanged and modified iterators become
+// available. `unchanged` and `modified` return key-value pairs;
+// `unchanged_keys` and `modified_keys` return keys; and
+// `unchanged_values` and `modified_values` return values.
+//
+// Here's `unchanged_keys` to get the keys of unchanged entries:
+assert_eq!(diff.unchanged_keys().collect::<Vec<_>>(), [&2]);
+
+// `modified_values` returns leaf nodes for modified entries.
+assert_eq!(
+    diff.modified_values().collect::<Vec<_>>(),
+    [Leaf { before: &"three", after: &"THREE" }],
 );
 ````
 
 #### Set diffs
 
 For [`BTreeSet`](https://doc.rust-lang.org/nightly/alloc/collections/btree/set/struct.BTreeSet.html) and [`HashSet`](https://doc.rust-lang.org/nightly/std/collections/hash/set/struct.HashSet.html), daft has corresponding [`BTreeSetDiff`](https://docs.rs/daft/0.1.0/daft/struct.BTreeSetDiff.html)
-and [`HashSetDiff`](https://docs.rs/daft/0.1.0/daft/struct.HashSetDiff.html) types. These types have fields for unchanged, added and
-removed entries.
+and [`HashSetDiff`](https://docs.rs/daft/0.1.0/daft/struct.HashSetDiff.html) types. These types have fields for *common*, *added*,
+and *removed* entries.
 
 Set diffs are performed eagerly.
 
@@ -169,7 +187,7 @@ let a: BTreeSet<i32> = [0, 1, 2, 3, 4, 5].into_iter().collect();
 let b: BTreeSet<i32> = [3, 4, 5, 6, 7, 8].into_iter().collect();
 let diff: BTreeSetDiff<'_, i32> = a.diff(&b);
 
-assert_eq!(diff.unchanged, [&3, &4, &5].into_iter().collect::<Vec<_>>());
+assert_eq!(diff.common, [&3, &4, &5].into_iter().collect::<Vec<_>>());
 assert_eq!(diff.added, [&6, &7, &8].into_iter().collect::<Vec<_>>());
 assert_eq!(diff.removed, [&0, &1, &2].into_iter().collect::<Vec<_>>());
 ````
@@ -347,9 +365,8 @@ this crate and a great alternative. Daft diverges from diffus in a few ways:
   diffing is desired.
 
 * Diffus has a `Same` trait, which is like `Eq` except it’s also implemented
-  for floats. Daft doesn’t have the `Same` trait, and in fact mostly forgoes
-  any trait requirements: the only places where `Eq` is required is for maps
-  (both keys and values) and sets.
+  for floats. Daft doesn’t have the `Same` trait, and its core
+  functionality forgoes the need for `Eq` entirely.
   
   For a primitive scalar like `f64`, you’ll get a `Leaf` struct which you can
   compare with whatever notion of equality you want.

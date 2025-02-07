@@ -113,10 +113,11 @@
 //! ### Map diffs
 //!
 //! For [`BTreeMap`] and [`HashMap`], daft has corresponding [`BTreeMapDiff`]
-//! and [`HashMapDiff`] types. These types have fields for *unchanged*, *added*,
-//! *removed*, and *modified* entries.
+//! and [`HashMapDiff`] types. These types have fields for *common*, *added*,
+//! and *removed* entries.
 //!
-//! Map diffs are performed eagerly.
+//! Map diffs are performed eagerly for keys, but values are stored as leaf
+//! nodes.
 //!
 //! #### Example
 //!
@@ -136,23 +137,40 @@
 //!
 //! let diff: BTreeMapDiff<'_, i32, &str> = a.diff(&b);
 //!
-//! // Unchanged, added, and removed entries are stored as maps:
-//! assert_eq!(diff.unchanged, [(&2, &"two")].into_iter().collect());
+//! // Added and removed entries are stored as maps:
 //! assert_eq!(diff.added, [(&4, &"four")].into_iter().collect());
 //! assert_eq!(diff.removed, [(&1, &"one")].into_iter().collect());
 //!
-//! // Modified entries are stored via the values' diff types:
+//! // Common entries are stored as leaf nodes.
 //! assert_eq!(
-//!     diff.modified,
-//!     [(&3, Leaf { before: "three", after: "THREE" })].into_iter().collect(),
+//!     diff.common,
+//!     [
+//!         (&2, Leaf { before: &"two", after: &"two" }),
+//!         (&3, Leaf { before: &"three", after: &"THREE" })
+//!     ]
+//!     .into_iter().collect(),
+//! );
+//!
+//! // If `V` implements `Eq`, unchanged and modified iterators become
+//! // available. `unchanged` and `modified` return key-value pairs;
+//! // `unchanged_keys` and `modified_keys` return keys; and
+//! // `unchanged_values` and `modified_values` return values.
+//! //
+//! // Here's `unchanged_keys` to get the keys of unchanged entries:
+//! assert_eq!(diff.unchanged_keys().collect::<Vec<_>>(), [&2]);
+//!
+//! // `modified_values` returns leaf nodes for modified entries.
+//! assert_eq!(
+//!     diff.modified_values().collect::<Vec<_>>(),
+//!     [Leaf { before: &"three", after: &"THREE" }],
 //! );
 //! ```
 //!
 //! ### Set diffs
 //!
 //! For [`BTreeSet`] and [`HashSet`], daft has corresponding [`BTreeSetDiff`]
-//! and [`HashSetDiff`] types. These types have fields for unchanged, added and
-//! removed entries.
+//! and [`HashSetDiff`] types. These types have fields for *common*, *added*,
+//! and *removed* entries.
 //!
 //! Set diffs are performed eagerly.
 //!
@@ -166,7 +184,7 @@
 //! let b: BTreeSet<i32> = [3, 4, 5, 6, 7, 8].into_iter().collect();
 //! let diff: BTreeSetDiff<'_, i32> = a.diff(&b);
 //!
-//! assert_eq!(diff.unchanged, [&3, &4, &5].into_iter().collect::<Vec<_>>());
+//! assert_eq!(diff.common, [&3, &4, &5].into_iter().collect::<Vec<_>>());
 //! assert_eq!(diff.added, [&6, &7, &8].into_iter().collect::<Vec<_>>());
 //! assert_eq!(diff.removed, [&0, &1, &2].into_iter().collect::<Vec<_>>());
 //! ```
@@ -352,9 +370,8 @@
 //!   diffing is desired.
 //!
 //! * Diffus has a `Same` trait, which is like `Eq` except it's also implemented
-//!   for floats. Daft doesn't have the `Same` trait, and in fact mostly forgoes
-//!   any trait requirements: the only places where `Eq` is required is for maps
-//!   (both keys and values) and sets.
+//!   for floats. Daft doesn't have the `Same` trait, and its core
+//!   functionality forgoes the need for `Eq` entirely.
 //!
 //!   For a primitive scalar like `f64`, you'll get a `Leaf` struct which you can
 //!   compare with whatever notion of equality you want.
@@ -611,36 +628,99 @@ macro_rules! map_diff {
          paste! {
 
             #[derive(Debug, PartialEq, Eq)]
-            pub struct [<$typ Diff>]<'daft, K: $key_constraint + Eq, V: Diffable> {
-                pub unchanged: $typ<&'daft K, &'daft V>,
+            pub struct [<$typ Diff>]<'daft, K: $key_constraint + Eq, V> {
+                pub common: $typ<&'daft K, Leaf<'daft, V>>,
                 pub added: $typ<&'daft K, &'daft V>,
                 pub removed: $typ<&'daft K, &'daft V>,
-                pub modified: $typ<&'daft K, V::Diff<'daft>>,
             }
 
-            impl<'daft, K: $key_constraint + Eq, V: Diffable> [<$typ Diff>]<'daft, K, V> {
+            impl<'daft, K: $key_constraint + Eq, V> [<$typ Diff>]<'daft, K, V> {
                 pub fn new() -> Self {
                     Self {
-                        unchanged: $typ::new(),
+                        common: $typ::new(),
                         added: $typ::new(),
                         removed: $typ::new(),
-                        modified: $typ::new(),
                     }
+                }
+            }
+
+            impl<'daft, K: $key_constraint + Eq, V: Eq> [<$typ Diff>]<'daft, K, V> {
+                /// Return an iterator over unchanged keys and values.
+                pub fn unchanged(&self) -> impl Iterator<Item = (&'daft K, &'daft V)> + '_ {
+                    self.common.iter().filter_map(|(k, leaf)| {
+                        (leaf.before == leaf.after).then_some((*k, leaf.before))
+                    })
+                }
+
+                /// Return an iterator over unchanged keys.
+                pub fn unchanged_keys(&self) -> impl Iterator<Item = &'daft K> + '_ {
+                    self.common.iter().filter_map(|(k, leaf)| {
+                        (leaf.before == leaf.after).then_some(*k)
+                    })
+                }
+
+                /// Return an iterator over unchanged values.
+                pub fn unchanged_values(&self) -> impl Iterator<Item = &'daft V> + '_ {
+                    self.common.iter().filter_map(|(_, leaf)| {
+                        (leaf.before == leaf.after).then_some(leaf.before)
+                    })
+                }
+
+                /// Return an iterator over modified keys and values.
+                pub fn modified(&self) -> impl Iterator<Item = (&'daft K, Leaf<'daft, V>)> + '_ {
+                    self.common.iter().filter_map(|(k, leaf)| {
+                        (leaf.before != leaf.after).then_some((*k, *leaf))
+                    })
+                }
+
+                /// Return an iterator over modified keys.
+                pub fn modified_keys(&self) -> impl Iterator<Item = &'daft K> + '_ {
+                    self.common.iter().filter_map(|(k, leaf)| {
+                        (leaf.before != leaf.after).then_some(*k)
+                    })
+                }
+
+                /// Return an iterator over modified values.
+                pub fn modified_values(&self) -> impl Iterator<Item = Leaf<'daft, V>> + '_ {
+                    self.common.iter().filter_map(|(_, leaf)| {
+                        (leaf.before != leaf.after).then_some(*leaf)
+                    })
+                }
+
+                /// Return an iterator over modified keys and values, performing
+                /// a diff on the values.
+                ///
+                /// This is useful when `V::Diff` is a complex type, not just a
+                /// [`Leaf`].
+                pub fn modified_diff(&self) -> impl Iterator<Item = (&'daft K, V::Diff<'daft>)> + '_
+                where
+                    V: Diffable,
+                {
+                    self.modified().map(|(k, leaf)| (k, leaf.before.diff(&leaf.after)))
+                }
+
+                /// Return an iterator over modified values, performing a diff on
+                /// them.
+                ///
+                /// This is useful when `V::Diff` is a complex type, not just a
+                /// [`Leaf`].
+                pub fn modified_values_diff(&self) -> impl Iterator<Item = V::Diff<'daft>> + '_
+                where
+                    V: Diffable,
+                {
+                    self.modified_values().map(|leaf| leaf.before.diff(&leaf.after))
                 }
             }
 
             // Note: not deriving Default here because we don't want to require
             // K or V to be Default.
-            impl<'daft, K: $key_constraint + Eq, V: Diffable> Default for [<$typ Diff>]<'daft, K, V> {
+            impl<'daft, K: $key_constraint + Eq, V> Default for [<$typ Diff>]<'daft, K, V> {
                 fn default() -> Self {
                     Self::new()
                 }
             }
 
-            impl<
-                 K: $key_constraint + Eq,
-                 V: Diffable + Eq>
-                     $crate::Diffable for $typ<K, V>
+            impl<K: $key_constraint + Eq, V> $crate::Diffable for $typ<K, V>
             {
                 type Diff<'daft> = [<$typ Diff>]<'daft, K, V> where K: 'daft, V: 'daft;
 
@@ -648,11 +728,7 @@ macro_rules! map_diff {
                     let mut diff = [<$typ Diff>]::new();
                     for (k, v) in self {
                         if let Some(other_v) = other.get(k) {
-                            if v != other_v {
-                                diff.modified.insert(k, v.diff(other_v));
-                            } else {
-                                diff.unchanged.insert(k, v);
-                            }
+                            diff.common.insert(k, Leaf { before: v, after: other_v });
                         } else {
                             diff.removed.insert(k, v);
                         }
@@ -684,16 +760,16 @@ macro_rules! set_diff{
          paste! {
 
             #[derive(Debug, PartialEq, Eq)]
-            pub struct [<$typ Diff>]<'daft, K: Diffable>  {
-                pub unchanged: Vec<&'daft K>,
+            pub struct [<$typ Diff>]<'daft, K>  {
+                pub common: Vec<&'daft K>,
                 pub added: Vec<&'daft K>,
                 pub removed: Vec<&'daft K>,
             }
 
-            impl<'daft, K: Diffable> [<$typ Diff>]<'daft, K> {
+            impl<'daft, K> [<$typ Diff>]<'daft, K> {
                 pub fn new() -> Self {
                     Self {
-                        unchanged: Vec::new(),
+                        common: Vec::new(),
                         added: Vec::new(),
                         removed: Vec::new(),
                     }
@@ -702,13 +778,13 @@ macro_rules! set_diff{
 
             // Note: not deriving Default here because we don't want to require
             // K to be Default.
-            impl<'daft, K: Diffable> Default for [<$typ Diff>]<'daft, K> {
+            impl<'daft, K> Default for [<$typ Diff>]<'daft, K> {
                 fn default() -> Self {
                     Self::new()
                 }
             }
 
-            impl<K: $key_constraint + Eq + Diffable>
+            impl<K: $key_constraint + Eq>
                 $crate::Diffable for $typ<K>
             {
                 type Diff<'daft> = [<$typ Diff>]<'daft, K> where K: 'daft;
@@ -717,7 +793,7 @@ macro_rules! set_diff{
                     let mut diff = [<$typ Diff>]::new();
                     diff.removed = self.difference(other).collect();
                     diff.added = other.difference(self).collect();
-                    diff.unchanged = self.intersection(other).collect();
+                    diff.common = self.intersection(other).collect();
                     diff
                 }
             }
@@ -767,7 +843,7 @@ mod tests {
         let expected = BTreeSetDiff {
             added: [&6, &7, &8].into_iter().collect(),
             removed: [&0, &1, &2].into_iter().collect(),
-            unchanged: [&3, &4, &5].into_iter().collect(),
+            common: [&3, &4, &5].into_iter().collect(),
         };
         assert_eq!(expected, changes);
 
@@ -775,14 +851,14 @@ mod tests {
         let b: HashSet<_> = [3, 4, 5, 6, 7, 8].into_iter().collect();
         let mut changes = a.diff(&b);
         // HashSet output must be sorted for comparison
-        changes.unchanged.sort_unstable();
+        changes.common.sort_unstable();
         changes.added.sort_unstable();
         changes.removed.sort_unstable();
 
         let expected = HashSetDiff {
             added: [&6, &7, &8].into_iter().collect(),
             removed: [&0, &1, &2].into_iter().collect(),
-            unchanged: [&3, &4, &5].into_iter().collect(),
+            common: [&3, &4, &5].into_iter().collect(),
         };
         assert_eq!(expected, changes);
     }
@@ -794,12 +870,14 @@ mod tests {
 
         let changes = a.diff(&b);
         let expected = BTreeMapDiff {
-            unchanged: [(&2, &1)].into_iter().collect(),
+            common: [
+                (&0, Leaf { before: &1, after: &2 }),
+                (&2, Leaf { before: &1, after: &1 }),
+            ]
+            .into_iter()
+            .collect(),
             added: [(&3, &1)].into_iter().collect(),
             removed: [(&1, &1)].into_iter().collect(),
-            modified: [(&0, Leaf { before: &1, after: &2 })]
-                .into_iter()
-                .collect(),
         };
 
         assert_eq!(changes, expected);
@@ -809,15 +887,71 @@ mod tests {
 
         let changes = a.diff(&b);
         let expected = HashMapDiff {
-            unchanged: [(&2, &1)].into_iter().collect(),
+            common: [
+                (&0, Leaf { before: &1, after: &2 }),
+                (&2, Leaf { before: &1, after: &1 }),
+            ]
+            .into_iter()
+            .collect(),
             added: [(&3, &1)].into_iter().collect(),
             removed: [(&1, &1)].into_iter().collect(),
-            modified: [(&0, Leaf { before: &1, after: &2 })]
-                .into_iter()
-                .collect(),
         };
 
         assert_eq!(changes, expected);
+
+        // Ensure that keys don't need to be Diffable, and values don't need to
+        // be Eq or Diffable.
+        #[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        struct K(i32);
+
+        #[derive(Debug)]
+        #[expect(dead_code)]
+        struct V(f64);
+
+        {
+            let floats_a: HashMap<K, V> =
+                [(K(0), V(1.0)), (K(1), V(1.0)), (K(2), V(1.0))]
+                    .into_iter()
+                    .collect();
+            let floats_b: HashMap<K, V> =
+                [(K(0), V(2.0)), (K(2), V(1.0)), (K(3), V(1.0))]
+                    .into_iter()
+                    .collect();
+
+            let diff = floats_a.diff(&floats_b);
+            assert_eq!(diff.added.keys().copied().collect::<Vec<_>>(), [&K(3)]);
+            assert_eq!(
+                diff.removed.keys().copied().collect::<Vec<_>>(),
+                [&K(1)]
+            );
+            // HashMaps have non-deterministic order, so they should be sorted
+            // before comparison.
+            let mut common = diff.common.keys().copied().collect::<Vec<_>>();
+            common.sort();
+            assert_eq!(common, [&K(0), &K(2)]);
+        }
+
+        {
+            let floats_a: BTreeMap<K, V> =
+                [(K(0), V(1.0)), (K(1), V(1.0)), (K(2), V(1.0))]
+                    .into_iter()
+                    .collect();
+            let floats_b: BTreeMap<K, V> =
+                [(K(0), V(2.0)), (K(2), V(1.0)), (K(3), V(1.0))]
+                    .into_iter()
+                    .collect();
+
+            let diff = floats_a.diff(&floats_b);
+            assert_eq!(diff.added.keys().copied().collect::<Vec<_>>(), [&K(3)]);
+            assert_eq!(
+                diff.removed.keys().copied().collect::<Vec<_>>(),
+                [&K(1)]
+            );
+            assert_eq!(
+                diff.common.keys().copied().collect::<Vec<_>>(),
+                [&K(0), &K(2)]
+            );
+        }
     }
 
     #[cfg(feature = "uuid1")]
@@ -868,9 +1002,9 @@ mod tests {
         };
 
         assert_ne!(diff.id.before, diff.id.after);
-        assert_eq!(diff.sled_state.unchanged.len(), 2);
+        assert_eq!(diff.sled_state.unchanged().count(), 2);
         assert_eq!(diff.sled_state.added.len(), 1);
         assert_eq!(diff.sled_state.removed.len(), 0);
-        assert_eq!(diff.sled_state.modified.len(), 1);
+        assert_eq!(diff.sled_state.modified().count(), 1);
     }
 }
