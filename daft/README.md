@@ -187,9 +187,9 @@ let a: BTreeSet<i32> = [0, 1, 2, 3, 4, 5].into_iter().collect();
 let b: BTreeSet<i32> = [3, 4, 5, 6, 7, 8].into_iter().collect();
 let diff: BTreeSetDiff<'_, i32> = a.diff(&b);
 
-assert_eq!(diff.common, [&3, &4, &5].into_iter().collect::<Vec<_>>());
-assert_eq!(diff.added, [&6, &7, &8].into_iter().collect::<Vec<_>>());
-assert_eq!(diff.removed, [&0, &1, &2].into_iter().collect::<Vec<_>>());
+assert_eq!(diff.common, [&3, &4, &5].into_iter().collect());
+assert_eq!(diff.added, [&6, &7, &8].into_iter().collect());
+assert_eq!(diff.removed, [&0, &1, &2].into_iter().collect());
 ````
 
 #### Recursive diffs
