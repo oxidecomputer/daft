@@ -1,0 +1,11 @@
+error: daft attributes are not allowed on fields of structs annotated with #[daft(leaf)]
+ --> tests/fixtures/invalid/struct-leaf-attributes.rs:7:5
+  |
+7 |     #[daft(ignore)]
+  |     ^^^^^^^^^^^^^^^
+
+error: daft attributes are not allowed on fields of structs annotated with #[daft(leaf)]
+ --> tests/fixtures/invalid/struct-leaf-attributes.rs:9:5
+  |
+9 |     #[daft(leaf)]
+  |     ^^^^^^^^^^^^^

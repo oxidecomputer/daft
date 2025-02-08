@@ -1,0 +1,23 @@
+error: #[daft(leaf)] specified multiple times
+ --> tests/fixtures/invalid/field-specified-multiple-times.rs:5:18
+  |
+5 |     #[daft(leaf, leaf, leaf)]
+  |                  ^^^^
+
+error: #[daft(leaf)] specified multiple times
+ --> tests/fixtures/invalid/field-specified-multiple-times.rs:5:24
+  |
+5 |     #[daft(leaf, leaf, leaf)]
+  |                        ^^^^
+
+error: #[daft(ignore)] specified multiple times
+ --> tests/fixtures/invalid/field-specified-multiple-times.rs:8:12
+  |
+8 |     #[daft(ignore)]
+  |            ^^^^^^
+
+error: #[daft(ignore)] specified multiple times
+ --> tests/fixtures/invalid/field-specified-multiple-times.rs:9:12
+  |
+9 |     #[daft(ignore)]
+  |            ^^^^^^

@@ -1,0 +1,5 @@
+error: expected `,`
+ --> tests/fixtures/invalid/struct-attribute-with-value.rs:4:13
+  |
+4 | #[daft(leaf = true)]
+  |             ^

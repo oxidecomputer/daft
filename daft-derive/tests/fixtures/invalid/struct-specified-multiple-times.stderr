@@ -1,0 +1,23 @@
+error: #[daft(leaf)] specified multiple times
+ --> tests/fixtures/invalid/struct-specified-multiple-times.rs:4:14
+  |
+4 | #[daft(leaf, leaf, leaf)]
+  |              ^^^^
+
+error: #[daft(leaf)] specified multiple times
+ --> tests/fixtures/invalid/struct-specified-multiple-times.rs:4:20
+  |
+4 | #[daft(leaf, leaf, leaf)]
+  |                    ^^^^
+
+error: #[daft(leaf)] specified multiple times
+  --> tests/fixtures/invalid/struct-specified-multiple-times.rs:12:8
+   |
+12 | #[daft(leaf)]
+   |        ^^^^
+
+error: #[daft(leaf)] specified multiple times
+  --> tests/fixtures/invalid/struct-specified-multiple-times.rs:13:8
+   |
+13 | #[daft(leaf)]
+   |        ^^^^
