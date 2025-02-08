@@ -1,6 +1,6 @@
 //! Implementations for types in std.
 
-use crate::{leaf, Diffable};
+use crate::Diffable;
 use std::{
     collections::{HashMap, HashSet},
     ffi::{OsStr, OsString},

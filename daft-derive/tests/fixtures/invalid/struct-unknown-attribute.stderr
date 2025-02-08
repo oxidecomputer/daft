@@ -1,0 +1,5 @@
+error: unknown attribute (supported attributes: leaf)
+ --> tests/fixtures/invalid/struct-unknown-attribute.rs:4:8
+  |
+4 | #[daft(ignore)]
+  |        ^^^^^^
