@@ -6,7 +6,9 @@ help:
 
 # Run `cargo hack --feature-powerset` on crates
 powerset *args:
-    cargo hack --feature-powerset --workspace {{args}}
+    # Group third-party implementation features to avoid a full combinatorial
+    # explosion -- we assume that they build independent of each other.
+    cargo hack --feature-powerset --workspace {{args}} --group-features newtype-uuid1,oxnet01,uuid1 --ignore-unknown-features
 
 # Build docs for crates and direct dependencies
 rustdoc *args:

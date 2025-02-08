@@ -18,7 +18,7 @@
 //! # Usage
 //!
 //! ```rust
-//! # #[cfg(feature = "std")] {
+//! # #[cfg(all(feature = "std", feature = "derive"))] {
 //! use daft::{Diffable, Leaf};
 //!
 //! // Annotate your struct with `#[derive(Diffable)]`:
@@ -94,6 +94,7 @@
 //! assert_eq!(diff.before, Some(&1));
 //! assert_eq!(diff.after, Some(&2));
 //!
+//! # #[cfg(feature = "derive")] {
 //! // Automatically derived enums also use Leaf:
 //! #[derive(Debug, PartialEq, Eq, Diffable)]
 //! enum MyEnum {
@@ -107,6 +108,7 @@
 //! let diff: Leaf<&MyEnum> = before.diff(&after);
 //! assert_eq!(diff.before, &before);
 //! assert_eq!(diff.after, &after);
+//! # }
 //! ```
 //!
 //! Vectors use `Leaf` as well:
@@ -267,7 +269,7 @@
 //! Tuple-like structs produce tuple-like diff structs:
 //!
 //! ```rust
-//! # #[cfg(feature = "std")] {
+//! # #[cfg(all(feature = "std", feature = "derive"))] {
 //! use daft::Diffable;
 //! use std::collections::BTreeMap;
 //!
@@ -288,6 +290,7 @@
 //! An example with `#[daft(leaf)]` on **structs**:
 //!
 //! ```rust
+//! # #[cfg(feature = "derive")] {
 //! use daft::{Diffable, Leaf};
 //!
 //! #[derive(Diffable)]
@@ -302,11 +305,13 @@
 //!
 //! assert_eq!(diff.before.a, 1);
 //! assert_eq!(diff.after.a, 2);
+//! # }
 //! ```
 //!
 //! An example with `#[daft(leaf)]` on **struct fields**:
 //!
 //! ```rust
+//! # #[cfg(feature = "derive")] {
 //! use daft::{Diffable, Leaf};
 //!
 //! // A simple struct that implements Diffable.
@@ -353,6 +358,7 @@
 //!
 //! // `PlainStruct` can also be compared even though it doesn't implement `Diffable`.
 //! assert_eq!(diff.plain, Leaf { before: &PlainStruct(1), after: &PlainStruct(2) });
+//! # }
 //! ```
 //!
 //! ### Custom diff types
@@ -364,7 +370,8 @@
 //!
 //! ### Example
 //!
-//! Some structs like identifiers should be treated as leaf nodes:
+//! Some structs like identifiers should be treated as leaf nodes. This can be
+//! implemented via `#[daft(leaf)]`, but also manually:
 //!
 //! ```rust
 //! # #[cfg(feature = "std")] {
@@ -400,6 +407,7 @@
 //! ### Example
 //!
 //! ```rust
+//! # #[cfg(feature = "derive")] {
 //! use daft::Diffable;
 //!
 //! #[derive(Diffable)]
@@ -417,9 +425,12 @@
 //!     b: T::Diff<'daft>,
 //! }
 //! # */
+//! # }
 //! ```
 //!
 //! # Optional features
+//!
+//! * `derive`: Enable the `Diffable` derive macro: **disabled** by default.
 //!
 //! Implementations for standard library types, all **enabled** by default:
 //!
@@ -507,6 +518,7 @@ pub use alloc_impls::*;
 ///   diff.
 ///
 /// For more information, see the [crate-level documentation](crate).
+#[cfg(feature = "derive")]
 pub use daft_derive::Diffable;
 pub use diffable::*;
 pub use leaf::*;

@@ -356,7 +356,8 @@ diff types directly.
 
 #### Example
 
-Some structs like identifiers should be treated as leaf nodes:
+Some structs like identifiers should be treated as leaf nodes. This can be
+implemented via `#[daft(leaf)]`, but also manually:
 
 ````rust
 use daft::{Diffable, Leaf};
@@ -408,6 +409,8 @@ struct BorrowedDataDiff<'daft, 'a: 'daft, 'b: 'daft, T: ?Sized + 'daft> {
 ````
 
 ## Optional features
+
+* `derive`: Enable the `Diffable` derive macro: **disabled** by default.
 
 Implementations for standard library types, all **enabled** by default:
 
