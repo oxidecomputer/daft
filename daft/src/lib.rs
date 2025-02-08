@@ -245,9 +245,19 @@
 //! A struct `Foo` gets a corresponding `FooDiff` struct, which has fields
 //! corresponding to each field in `Foo`.
 //!
-//! Structs can be annotated with `#[daft(leaf)]` to treat the field as a leaf
-//! node, regardless of the field's `Diff` type or even whether it implements
-//! [`Diffable`].
+//! #### Struct options
+//!
+//! * `#[daft(leaf)]`: if a **struct** is annotated with this, the [`Diffable`]
+//!   implementation for the struct will be a [`Leaf`] instead of a recursive
+//!   diff.
+//!
+//! #### Field options
+//!
+//! * `#[daft(leaf)]`: if a  **struct field** is annotated with this, the generated
+//!   struct's corresponding field will be a [`Leaf`], regardless of the field's
+//!   `Diff` type (or even whether it implements [`Diffable`] at all).
+//! * `#[daft(ignore)]`: the generated struct's corresponding field is not included
+//!   in the diff.
 //!
 //! #### Example
 //!
@@ -274,7 +284,26 @@
 //! # }
 //! ```
 //!
-//! An example with `#[daft(leaf)]`:
+//! An example with `#[daft(leaf)]` on **structs**:
+//!
+//! ```rust
+//! use daft::{Diffable, Leaf};
+//!
+//! #[derive(Diffable)]
+//! #[daft(leaf)]
+//! struct MyStruct {
+//!     a: i32,
+//! }
+//!
+//! let before = MyStruct { a: 1 };
+//! let after = MyStruct { a: 2 };
+//! let diff: Leaf<&MyStruct> = before.diff(&after);
+//!
+//! assert_eq!(diff.before.a, 1);
+//! assert_eq!(diff.after.a, 2);
+//! ```
+//!
+//! An example with `#[daft(leaf)]` on **struct fields**:
 //!
 //! ```rust
 //! use daft::{Diffable, Leaf};

@@ -25,24 +25,15 @@ pub fn derive_diffable(input: syn::DeriveInput) -> TokenStream {
             }
         }
         Data::Struct(s) => {
-            let Some((generated_struct, diff_fields)) =
-                make_diff_struct(&input, s, error_store.sink())
-            else {
-                // At least one error occurred parsing fields -- don't
-                // generate the diff struct.
-                let errors = error_store
-                    .into_inner()
-                    .into_iter()
-                    .map(|error| error.into_compile_error());
-                return quote! { #(#errors)* };
-            };
-            let diff_impl = make_diff_impl(&input, &diff_fields);
-            // Uncomment for some debugging
-            // eprintln!("{generated_struct}");
-            // eprintln!("{diff_impl}");
+            // This might be None if there are errors.
+            let out = make_struct_impl(&input, s, error_store.sink());
+            let errors = error_store
+                .into_inner()
+                .into_iter()
+                .map(|error| error.into_compile_error());
             quote! {
-                #generated_struct
-                #diff_impl
+                #out
+                #(#errors)*
             }
         }
 
@@ -105,6 +96,11 @@ fn make_leaf(
         if attr.path().is_ident("daft") {
             let res = attr.parse_nested_meta(|meta| {
                 if meta.path.is_ident("leaf") {
+                    // Accept this for leaf structs, but not for anything else.
+                    if position == AttrPosition::LeafStruct {
+                        return Ok(());
+                    }
+
                     errors.push(meta.error(format!(
                         "this is unnecessary: the Diffable \
                          implementation {} is always a leaf",
@@ -187,10 +183,12 @@ impl Visit<'_> for BanDaftAttrsVisitor<'_> {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum AttrPosition {
     // Catch-all in case something unexpected happens with the visitor.
     General,
+    LeafStruct,
+    LeafStructField,
     Enum,
     Variant,
     VariantField,
@@ -203,6 +201,8 @@ impl AttrPosition {
         match self {
             Self::Enum => Self::Variant,
             Self::General
+            | Self::LeafStruct
+            | Self::LeafStructField
             | Self::Variant
             | Self::VariantField
             | Self::Union
@@ -212,9 +212,11 @@ impl AttrPosition {
 
     fn visit_field(self) -> Self {
         match self {
+            Self::LeafStruct => Self::LeafStructField,
             Self::Variant => Self::VariantField,
             Self::Union => Self::UnionField,
             Self::General
+            | Self::LeafStructField
             | Self::Enum
             | Self::VariantField
             | Self::UnionField => Self::General,
@@ -226,6 +228,10 @@ impl AttrPosition {
     fn as_purpose_str(self) -> &'static str {
         match self {
             Self::General => "for this type",
+            Self::LeafStruct => "for structs annotated with #[daft(leaf)]",
+            Self::LeafStructField => {
+                "for fields on structs annotated with #[daft(leaf)]"
+            }
             Self::Enum => "for enums",
             Self::Variant => "for enum variants",
             Self::VariantField => "for enum variant fields",
@@ -238,11 +244,46 @@ impl AttrPosition {
     fn as_locative_str(self) -> &'static str {
         match self {
             Self::General => "here",
+            Self::LeafStruct => "on structs annotated with #[daft(leaf)]",
+            Self::LeafStructField => {
+                "on fields of structs annotated with #[daft(leaf)]"
+            }
             Self::Enum => "on enums",
             Self::Variant => "on enum variants",
             Self::VariantField => "on enum variant fields",
             Self::Union => "on unions",
             Self::UnionField => "on union fields",
+        }
+    }
+}
+
+fn make_struct_impl(
+    input: &DeriveInput,
+    s: &DataStruct,
+    errors: ErrorSink<'_, syn::Error>,
+) -> Option<TokenStream> {
+    let Some(struct_config) =
+        StructConfig::parse_from(&input.attrs, errors.new_child())
+    else {
+        // An error occurred parsing the struct configuration -- don't generate
+        // anything.
+        return None;
+    };
+
+    match struct_config.mode {
+        StructMode::Default => make_diff_struct(input, s, errors.new_child())
+            .map(|(generated_struct, diff_fields)| {
+                let diff_impl = make_diff_impl(input, &diff_fields);
+                // Uncomment for some debugging
+                // eprintln!("{generated_struct}");
+                // eprintln!("{diff_impl}");
+                quote! {
+                    #generated_struct
+                    #diff_impl
+                }
+            }),
+        StructMode::Leaf => {
+            Some(make_leaf(input, AttrPosition::LeafStruct, errors.new_child()))
         }
     }
 }
@@ -607,6 +648,66 @@ fn generate_field_diffs(
             }
         });
     quote! { #(#field_diffs),* }
+}
+
+#[derive(Debug)]
+struct StructConfig {
+    mode: StructMode,
+}
+
+impl StructConfig {
+    fn parse_from(
+        attrs: &[Attribute],
+        errors: ErrorSink<'_, syn::Error>,
+    ) -> Option<Self> {
+        let mut mode = StructMode::Default;
+
+        for attr in attrs {
+            {
+                if attr.path().is_ident("daft") {
+                    let res = attr.parse_nested_meta(|meta| {
+                        if meta.path.is_ident("leaf") {
+                            match mode {
+                                StructMode::Default => {
+                                    mode = StructMode::Leaf;
+                                }
+                                StructMode::Leaf => {
+                                    errors.push(meta.error(
+                                    "#[daft(leaf)] specified multiple times",
+                                ));
+                                }
+                            }
+                        } else {
+                            errors.push(meta.error(
+                                "unknown attribute \
+                                 (supported attributes: leaf)",
+                            ));
+                        }
+
+                        Ok(())
+                    });
+
+                    if let Err(err) = res {
+                        errors.push(err);
+                    }
+                }
+            }
+        }
+
+        if errors.has_errors() {
+            None
+        } else {
+            Some(Self { mode })
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum StructMode {
+    // The default mode: do a recursive diff for this struct.
+    Default,
+    // Use a `Leaf` for this struct.
+    Leaf,
 }
 
 #[derive(Debug)]
