@@ -10,6 +10,7 @@ edition = "2021"
 repository = "https://github.com/oxidecomputer/daft"
 rust-version = "1.81.0"
 license = "MIT OR Apache-2.0"
+keywords = ["diff", "difference", "semantic-diff", "structural-diff"]
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(doc_cfg)"] }
@@ -17,7 +18,9 @@ unexpected_cfgs = { level = "warn", check-cfg = ["cfg(doc_cfg)"] }
 [workspace.dependencies]
 datatest-stable = "0.3.2"
 daft = { version = "0.1.0", path = "daft" }
-daft-derive = { version = "0.1.0", path = "daft-derive" }
+# Use a fixed version number for daft-derive, so daft and daft-derive are always
+# in sync -- the two are released in lockstep.
+daft-derive = { version = "=0.1.0", path = "daft-derive" }
 expectorate = "1.1.0"
 newtype-uuid = "1.2.1"
 oxnet = { git = "https://github.com/oxidecomputer/oxnet" }
