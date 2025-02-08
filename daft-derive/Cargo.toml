@@ -17,10 +17,10 @@ proc-macro = true
 [dependencies]
 proc-macro2.workspace = true
 quote.workspace = true
-syn = { workspace = true, features = ["full"] }
+syn = { workspace = true, features = ["full", "visit"] }
 
 [dev-dependencies]
-daft.workspace = true
+daft = { workspace = true, features = ["derive"] }
 datatest-stable.workspace = true
 expectorate.workspace = true
 prettyplease.workspace = true
