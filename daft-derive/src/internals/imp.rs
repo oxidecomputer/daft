@@ -2,9 +2,9 @@ use super::error_store::{ErrorSink, ErrorStore};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{
-    parse_quote, parse_str, Attribute, Data, DataStruct, DeriveInput, Expr,
-    Field, Fields, GenericParam, Generics, Index, Lifetime, LifetimeParam,
-    Path, Token, WhereClause, WherePredicate,
+    parse_quote, parse_str, visit::Visit, Attribute, Data, DataStruct,
+    DeriveInput, Expr, Field, Fields, GenericParam, Generics, Index, Lifetime,
+    LifetimeParam, Path, Token, WhereClause, WherePredicate,
 };
 
 pub fn derive_diffable(input: syn::DeriveInput) -> TokenStream {
@@ -14,9 +14,15 @@ pub fn derive_diffable(input: syn::DeriveInput) -> TokenStream {
     match &input.data {
         Data::Enum(_) => {
             // Implement all Enums as `Leaf`s
-            let out = make_leaf_for_enum(&input);
+            let out = make_leaf(&input, AttrPosition::Enum, error_store.sink());
+            // Errors might have occurred while parsing attributes.
+            let errors = error_store
+                .into_inner()
+                .into_iter()
+                .map(|error| error.into_compile_error());
             quote! {
                 #out
+                #(#errors)*
             }
         }
         Data::Struct(s) => {
@@ -82,10 +88,45 @@ fn add_lifetime_to_generics(
     new_generics
 }
 
-// Implement `Diffable` for an enum
-//
-// Return a `Leaf` as a Diff
-fn make_leaf_for_enum(input: &DeriveInput) -> TokenStream {
+// Implement `Diffable` as a `Leaf`.
+fn make_leaf(
+    input: &DeriveInput,
+    position: AttrPosition,
+    errors: ErrorSink<'_, syn::Error>,
+) -> TokenStream {
+    // The input should not have any daft attributes.
+    for attr in &input.attrs {
+        if attr.path().is_ident("daft") {
+            let res = attr.parse_nested_meta(|meta| {
+                if meta.path.is_ident("leaf") {
+                    errors.push(meta.error(format!(
+                        "this is unnecessary: the Diffable \
+                         implementation {} is always a leaf",
+                        position.as_purpose_str(),
+                    )));
+                } else {
+                    errors.push(meta.error(format!(
+                        "daft attributes are not allowed {}",
+                        position.as_locative_str(),
+                    )));
+                }
+
+                Ok(())
+            });
+            if let Err(err) = res {
+                errors.push(err);
+            }
+        }
+    }
+
+    // Variants should not have any daft attributes.
+    let mut v = BanDaftAttrsVisitor { position, errors: errors.new_child() };
+    v.visit_data(&input.data);
+
+    // Even though errors might have occurred above, we *do* generate the
+    // implementation. That allows rust-analyzer to still understand that the
+    // `Diffable` impl exists.
+
     let ident = &input.ident;
     let daft_crate = daft_crate();
     let daft_lt = daft_lifetime();
@@ -103,6 +144,85 @@ fn make_leaf_for_enum(input: &DeriveInput) -> TokenStream {
             fn diff<#daft_lt>(&#daft_lt self, other: &#daft_lt Self) -> Self::Diff<#daft_lt> {
                 #daft_crate::Leaf {before: self, after: other}
             }
+        }
+    }
+}
+
+struct BanDaftAttrsVisitor<'a> {
+    position: AttrPosition,
+    errors: ErrorSink<'a, syn::Error>,
+}
+
+impl Visit<'_> for BanDaftAttrsVisitor<'_> {
+    fn visit_attribute(&mut self, attr: &Attribute) {
+        if attr.path().is_ident("daft") {
+            self.errors.push(syn::Error::new_spanned(
+                attr,
+                format!(
+                    "daft attributes are not allowed {}",
+                    self.position.as_locative_str(),
+                ),
+            ));
+        }
+    }
+
+    fn visit_variant(&mut self, v: &syn::Variant) {
+        let old_position = self.position;
+        self.position = self.position.visit_variant();
+        syn::visit::visit_variant(self, v);
+        self.position = old_position;
+    }
+
+    fn visit_field(&mut self, f: &syn::Field) {
+        let old_position = self.position;
+        self.position = self.position.visit_field();
+        syn::visit::visit_field(self, f);
+        self.position = old_position;
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum AttrPosition {
+    // Catch-all in case something unexpected happens with the visitor.
+    General,
+    Enum,
+    Variant,
+    VariantField,
+}
+
+impl AttrPosition {
+    fn visit_variant(self) -> Self {
+        match self {
+            Self::Enum => Self::Variant,
+            Self::General | Self::Variant | Self::VariantField => Self::General,
+        }
+    }
+
+    fn visit_field(self) -> Self {
+        match self {
+            Self::Variant => Self::VariantField,
+            Self::General | Self::Enum | Self::VariantField => Self::General,
+        }
+    }
+
+    // purpose = prepositional phrase to indicate what something applies to,
+    // e.g. "the implementation for enums is always"
+    fn as_purpose_str(self) -> &'static str {
+        match self {
+            Self::General => "for this type",
+            Self::Enum => "for enums",
+            Self::Variant => "for enum variants",
+            Self::VariantField => "for enum variant fields",
+        }
+    }
+
+    // "locative" = indicating location: "not allowed on enums", etc.
+    fn as_locative_str(self) -> &'static str {
+        match self {
+            Self::General => "here",
+            Self::Enum => "on enums",
+            Self::Variant => "on enum variants",
+            Self::VariantField => "on enum variant fields",
         }
     }
 }
