@@ -9,7 +9,6 @@ use syn::{
 
 pub fn derive_diffable(input: syn::DeriveInput) -> TokenStream {
     let mut error_store = ErrorStore::new();
-    let name = &input.ident;
 
     match &input.data {
         Data::Enum(_) => {
@@ -48,10 +47,17 @@ pub fn derive_diffable(input: syn::DeriveInput) -> TokenStream {
         }
 
         Data::Union(_) => {
-            let daft_crate = daft_crate();
+            // Implement all unions as `Leaf`s
+            let out =
+                make_leaf(&input, AttrPosition::Union, error_store.sink());
+            // Errors might have occurred while parsing attributes.
+            let errors = error_store
+                .into_inner()
+                .into_iter()
+                .map(|error| error.into_compile_error());
             quote! {
-                // Implement all Unions as `Leaf`s
-                #daft_crate::leaf!(#name);
+                #out
+                #(#errors)*
             }
         }
     }
@@ -188,20 +194,30 @@ enum AttrPosition {
     Enum,
     Variant,
     VariantField,
+    Union,
+    UnionField,
 }
 
 impl AttrPosition {
     fn visit_variant(self) -> Self {
         match self {
             Self::Enum => Self::Variant,
-            Self::General | Self::Variant | Self::VariantField => Self::General,
+            Self::General
+            | Self::Variant
+            | Self::VariantField
+            | Self::Union
+            | Self::UnionField => Self::General,
         }
     }
 
     fn visit_field(self) -> Self {
         match self {
             Self::Variant => Self::VariantField,
-            Self::General | Self::Enum | Self::VariantField => Self::General,
+            Self::Union => Self::UnionField,
+            Self::General
+            | Self::Enum
+            | Self::VariantField
+            | Self::UnionField => Self::General,
         }
     }
 
@@ -213,6 +229,8 @@ impl AttrPosition {
             Self::Enum => "for enums",
             Self::Variant => "for enum variants",
             Self::VariantField => "for enum variant fields",
+            Self::Union => "for unions",
+            Self::UnionField => "for union fields",
         }
     }
 
@@ -223,6 +241,8 @@ impl AttrPosition {
             Self::Enum => "on enums",
             Self::Variant => "on enum variants",
             Self::VariantField => "on enum variant fields",
+            Self::Union => "on unions",
+            Self::UnionField => "on union fields",
         }
     }
 }
