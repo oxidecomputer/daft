@@ -1,12 +1,14 @@
+use super::error_store::{ErrorSink, ErrorStore};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{
-    parse_quote, parse_str, Data, DataStruct, DeriveInput, Expr, Field, Fields,
-    GenericParam, Generics, Index, Lifetime, LifetimeParam, Path, Token,
-    WhereClause, WherePredicate,
+    parse_quote, parse_str, Attribute, Data, DataStruct, DeriveInput, Expr,
+    Field, Fields, GenericParam, Generics, Index, Lifetime, LifetimeParam,
+    Path, Token, WhereClause, WherePredicate,
 };
 
 pub fn derive_diffable(input: syn::DeriveInput) -> TokenStream {
+    let mut error_store = ErrorStore::new();
     let name = &input.ident;
 
     match &input.data {
@@ -18,8 +20,18 @@ pub fn derive_diffable(input: syn::DeriveInput) -> TokenStream {
             }
         }
         Data::Struct(s) => {
-            let generated_struct = make_diff_struct(&input, s);
-            let diff_impl = make_diff_impl(&input, s);
+            let Some((generated_struct, diff_fields)) =
+                make_diff_struct(&input, s, error_store.sink())
+            else {
+                // At least one error occurred parsing fields -- don't
+                // generate the diff struct.
+                let errors = error_store
+                    .into_inner()
+                    .into_iter()
+                    .map(|error| error.into_compile_error());
+                return quote! { #(#errors)* };
+            };
+            let diff_impl = make_diff_impl(&input, &diff_fields);
             // Uncomment for some debugging
             // eprintln!("{generated_struct}");
             // eprintln!("{diff_impl}");
@@ -96,7 +108,11 @@ fn make_leaf_for_enum(input: &DeriveInput) -> TokenStream {
 }
 
 /// Create the `Diff` struct
-fn make_diff_struct(input: &DeriveInput, s: &DataStruct) -> TokenStream {
+fn make_diff_struct(
+    input: &DeriveInput,
+    s: &DataStruct,
+    errors: ErrorSink<'_, syn::Error>,
+) -> Option<(TokenStream, DiffFields)> {
     // The name of the original type
     let vis = &input.vis;
 
@@ -122,7 +138,14 @@ fn make_diff_struct(input: &DeriveInput, s: &DataStruct) -> TokenStream {
     let new_generics = add_lifetime_to_generics(input, &daft_lt);
     let where_clause = &new_generics.where_clause;
 
-    let diff_fields = DiffFields::new(&s.fields, where_clause.as_ref());
+    let Some(diff_fields) =
+        DiffFields::new(&s.fields, where_clause.as_ref(), errors.new_child())
+    else {
+        // An error occurred parsing fields -- don't generate the diff struct.
+        return None;
+    };
+
+    // --- No more errors past this point ---
 
     let struct_def = match &s.fields {
         Fields::Named(_) => quote! {
@@ -216,22 +239,29 @@ fn make_diff_struct(input: &DeriveInput, s: &DataStruct) -> TokenStream {
         }
     };
 
-    quote! {
-        #struct_def
-        #debug_impl
-        #partial_eq_impl
-        #eq_impl
-    }
+    Some((
+        quote! {
+            #struct_def
+            #debug_impl
+            #partial_eq_impl
+            #eq_impl
+        },
+        diff_fields,
+    ))
 }
 
 /// Impl `Diffable` for the original struct
-fn make_diff_impl(input: &DeriveInput, s: &DataStruct) -> TokenStream {
+fn make_diff_impl(
+    input: &DeriveInput,
+    diff_fields: &DiffFields,
+) -> TokenStream {
     // The name of the original type
     let ident = &input.ident;
 
     // The name of the generated type
     let name = parse_str::<Path>(&format!("{}Diff", input.ident)).unwrap();
-    let diffs = generate_field_diffs(&s.fields);
+    let diffs =
+        generate_field_diffs(&diff_fields.fields, &diff_fields.field_configs);
 
     let daft_crate = daft_crate();
     let daft_lt = daft_lifetime();
@@ -264,36 +294,53 @@ fn make_diff_impl(input: &DeriveInput, s: &DataStruct) -> TokenStream {
 /// and members.
 struct DiffFields {
     fields: Fields,
+    // Configuration for each field -- a vector with the same length as `self.fields`.
+    field_configs: Vec<FieldConfig>,
     // The base where clause for the diff struct.
     where_clause: WhereClause,
 }
 
 impl DiffFields {
-    fn new(fields: &Fields, where_clause: Option<&WhereClause>) -> Self {
-        let fields = match fields {
+    /// None means there was an error parsing a config.
+    fn new(
+        fields: &Fields,
+        where_clause: Option<&WhereClause>,
+        errors: ErrorSink<'_, syn::Error>,
+    ) -> Option<Self> {
+        let (fields, field_configs) = match fields {
             Fields::Named(fields) => {
-                let diff_fields = fields
+                let (named, configs) = fields
                     .named
                     .iter()
-                    .filter(|f| !has_ignore_attr(f))
-                    .map(Self::diff_field);
-                Fields::Named(syn::FieldsNamed {
-                    brace_token: fields.brace_token,
-                    named: diff_fields.collect(),
-                })
+                    .filter_map(|field| {
+                        Self::diff_field(field, errors.new_child())
+                    })
+                    .unzip();
+                (
+                    Fields::Named(syn::FieldsNamed {
+                        brace_token: fields.brace_token,
+                        named,
+                    }),
+                    configs,
+                )
             }
             Fields::Unnamed(fields) => {
-                let diff_fields = fields
+                let (unnamed, configs) = fields
                     .unnamed
                     .iter()
-                    .filter(|f| !has_ignore_attr(f))
-                    .map(Self::diff_field);
-                Fields::Unnamed(syn::FieldsUnnamed {
-                    paren_token: fields.paren_token,
-                    unnamed: diff_fields.collect(),
-                })
+                    .filter_map(|field| {
+                        Self::diff_field(field, errors.new_child())
+                    })
+                    .unzip();
+                (
+                    Fields::Unnamed(syn::FieldsUnnamed {
+                        paren_token: fields.paren_token,
+                        unnamed,
+                    }),
+                    configs,
+                )
             }
-            Fields::Unit => Fields::Unit,
+            Fields::Unit => (Fields::Unit, Vec::new()),
         };
 
         // Initialize an empty where clause if none was provided.
@@ -303,11 +350,33 @@ impl DiffFields {
                 predicates: Default::default(),
             });
 
-        Self { fields, where_clause }
+        if errors.has_errors() {
+            None
+        } else {
+            Some(Self { fields, field_configs, where_clause })
+        }
     }
 
-    /// Return a field for a diff with the appropriate type
-    fn diff_field(f: &Field) -> Field {
+    /// Return a field for a diff with the appropriate type.
+    ///
+    /// If the type is ignored, or if there's an error parsing configuration,
+    /// return None.
+    fn diff_field(
+        f: &Field,
+        errors: ErrorSink<'_, syn::Error>,
+    ) -> Option<(Field, FieldConfig)> {
+        let Some(config) =
+            FieldConfig::parse_from(&f.attrs, errors.new_child())
+        else {
+            // None means there's an error parsing a config -- return None here,
+            // we'll emit errors at the top level.
+            return None;
+        };
+        if config.mode == FieldMode::Ignore {
+            // Skip over this field if there's an ignore.
+            return None;
+        }
+
         // Always use the daft lifetime for the diff -- associations between the
         // daft lifetime and existing parameters (both lifetime and type
         // parameters) are created in `add_lifetime_to_generics`, e.g. `'a:
@@ -317,7 +386,7 @@ impl DiffFields {
         let ty = &f.ty;
         let mut f = f.clone();
 
-        f.ty = if has_leaf_attr(&f) {
+        f.ty = if config.mode == FieldMode::Leaf {
             parse_quote! {
                 #daft_crate::Leaf<&#lt #ty>
             }
@@ -331,7 +400,7 @@ impl DiffFields {
         // future.
         f.attrs = vec![];
 
-        f
+        Some((f, config))
     }
 
     /// Returns an iterator over field types.
@@ -366,59 +435,121 @@ impl ToTokens for DiffFields {
 
 /// Generate a call to `diff` for each field of the original struct that isn't
 /// ignored.
-fn generate_field_diffs(fields: &Fields) -> TokenStream {
+fn generate_field_diffs(
+    fields: &Fields,
+    // Should be the same length as `fields`.
+    field_configs: &[FieldConfig],
+) -> TokenStream {
     let daft_crate = daft_crate();
     let field_diffs =
-        fields.iter().enumerate().filter(|(_, f)| !has_ignore_attr(f)).map(
-            |(i, f)| {
-                let field_name = match &f.ident {
-                    Some(ident) => quote! { #ident },
-                    None => {
-                        let ident: Index = i.into();
-                        quote! { #ident }
-                    }
-                };
-                if has_leaf_attr(f) {
-                    quote! {
-                        #field_name: #daft_crate::Leaf {
-                            before: &self.#field_name,
-                            after: &other.#field_name
-                        }
-                    }
-                } else {
-                    quote! {
-                        #field_name: #daft_crate::Diffable::diff(
-                            &self.#field_name,
-                            &other.#field_name
-                        )
+        fields.iter().zip(field_configs).enumerate().map(|(i, (f, config))| {
+            let field_name = match &f.ident {
+                Some(ident) => quote! { #ident },
+                None => {
+                    let ident: Index = i.into();
+                    quote! { #ident }
+                }
+            };
+            if config.mode == FieldMode::Leaf {
+                quote! {
+                    #field_name: #daft_crate::Leaf {
+                        before: &self.#field_name,
+                        after: &other.#field_name
                     }
                 }
-            },
-        );
+            } else {
+                quote! {
+                    #field_name: #daft_crate::Diffable::diff(
+                        &self.#field_name,
+                        &other.#field_name
+                    )
+                }
+            }
+        });
     quote! { #(#field_diffs),* }
 }
 
-// Is the field tagged with `#[daft(ignore)]` ?
-fn has_ignore_attr(field: &syn::Field) -> bool {
-    has_attr(field, "ignore")
+#[derive(Debug)]
+struct FieldConfig {
+    mode: FieldMode,
 }
 
-// Is the field tagged with `#[daft(leaf)]`
-fn has_leaf_attr(field: &syn::Field) -> bool {
-    has_attr(field, "leaf")
-}
+impl FieldConfig {
+    fn parse_from(
+        attrs: &[Attribute],
+        errors: ErrorSink<'_, syn::Error>,
+    ) -> Option<Self> {
+        let mut mode = FieldMode::Default;
 
-// Is the field tagged with a given attribute?
-fn has_attr(field: &syn::Field, attribute_name: &str) -> bool {
-    field.attrs.iter().any(|attr| {
-        if attr.path().is_ident("daft") {
-            // Ignore failures
-            if let Ok(meta) = attr.parse_args::<syn::Meta>() {
-                if meta.path().is_ident(attribute_name) {
-                    return true;
+        for attr in attrs {
+            if attr.path().is_ident("daft") {
+                let res = attr.parse_nested_meta(|meta| {
+                    if meta.path.is_ident("leaf") {
+                        // #[daft(leaf)]
+                        match mode {
+                            FieldMode::Default => {
+                                mode = FieldMode::Leaf;
+                            }
+                            FieldMode::Leaf => {
+                                errors.push(meta.error(
+                                    "#[daft(leaf)] specified multiple times",
+                                ));
+                            }
+                            _ => {
+                                errors.push(meta.error(
+                                    "#[daft(leaf)] conflicts with \
+                                     other attributes",
+                                ));
+                            }
+                        }
+                    } else if meta.path.is_ident("ignore") {
+                        // #[daft(ignore)]
+                        match mode {
+                            FieldMode::Default => {
+                                mode = FieldMode::Ignore;
+                            }
+                            FieldMode::Ignore => {
+                                errors.push(meta.error(
+                                    "#[daft(ignore)] specified multiple times",
+                                ));
+                            }
+                            _ => {
+                                errors.push(meta.error(
+                                    "#[daft(ignore)] conflicts with \
+                                     other attributes",
+                                ));
+                            }
+                        }
+                    } else {
+                        errors.push(meta.error(
+                            "unknown attribute \
+                             (supported attributes: leaf, ignore)",
+                        ));
+                    }
+
+                    Ok(())
+                });
+                // We don't return an error from our callback, but syn might.
+                if let Err(err) = res {
+                    errors.push(err);
                 }
             }
         }
-        false
-    })
+
+        if errors.has_errors() {
+            None
+        } else {
+            Some(Self { mode })
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FieldMode {
+    // The default mode: do a recursive diff for this field.
+    Default,
+    // Use a `Leaf` for this field.
+    Leaf,
+    // Ignore this field.
+    Ignore,
 }

@@ -1,0 +1,11 @@
+error: unknown attribute (supported attributes: leaf, ignore)
+ --> tests/fixtures/invalid/field-unknown-attribute.rs:5:12
+  |
+5 |     #[daft(foo)]
+  |            ^^^
+
+error: unknown attribute (supported attributes: leaf, ignore)
+ --> tests/fixtures/invalid/field-unknown-attribute.rs:7:12
+  |
+7 |     #[daft(bar)]
+  |            ^^^

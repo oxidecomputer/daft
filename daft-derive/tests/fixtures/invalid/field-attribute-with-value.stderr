@@ -1,0 +1,11 @@
+error: expected `,`
+ --> tests/fixtures/invalid/field-attribute-with-value.rs:6:17
+  |
+6 |     #[daft(leaf = true)]
+  |                 ^
+
+error: expected `,`
+ --> tests/fixtures/invalid/field-attribute-with-value.rs:8:19
+  |
+8 |     #[daft(ignore = "yes")]
+  |                   ^
