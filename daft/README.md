@@ -27,12 +27,14 @@ notion of a type for which two members can be simultaneously compared.
 use daft::{Diffable, Leaf};
 
 // Annotate your struct with `#[derive(Diffable)]`:
+#[derive(Diffable)]
 struct MyStruct {
     a: i32,
     b: String,
 }
 
 // This generates a type called MyStructDiff, which looks like:
+#[automatically_derived]
 struct MyStructDiff<'daft> {
     a: Leaf<&'daft i32>,
     b: Leaf<&'daft str>,
@@ -95,6 +97,7 @@ assert_eq!(diff.before, Some(&1));
 assert_eq!(diff.after, Some(&2));
 
 // Automatically derived enums also use Leaf:
+#[derive(Debug, PartialEq, Eq, Diffable)]
 enum MyEnum {
     A(i32),
     B(String),
@@ -261,6 +264,7 @@ Tuple-like structs produce tuple-like diff structs:
 use daft::Diffable;
 use std::collections::BTreeMap;
 
+#[derive(Diffable)]
 struct MyTuple(BTreeMap<i32, &'static str>, i32);
 
 let before = MyTuple(BTreeMap::new(), 1);
@@ -278,6 +282,8 @@ An example with `#[daft(leaf)]` on **structs**:
 ````rust
 use daft::{Diffable, Leaf};
 
+#[derive(Diffable)]
+#[daft(leaf)]
 struct MyStruct {
     a: i32,
 }
@@ -296,13 +302,16 @@ An example with `#[daft(leaf)]` on **struct fields**:
 use daft::{Diffable, Leaf};
 
 // A simple struct that implements Diffable.
+#[derive(Debug, PartialEq, Eq, Diffable)]
 struct InnerStruct {
     text: &'static str,
 }
 
 // A struct that does not implement Diffable.
+#[derive(Debug, PartialEq, Eq)]
 struct PlainStruct(usize);
 
+#[derive(Diffable)]
 struct OuterStruct {
     // Ordinarily, InnerStruct would be diffed recursively, but
     // with #[daft(leaf)], it is treated as a leaf node.
@@ -383,6 +392,7 @@ outlive it.
 ````rust
 use daft::Diffable;
 
+#[derive(Diffable)]
 struct BorrowedData<'a, 'b, T: Diffable + ?Sized> {
     a: &'a str,
     b: &'b T,
@@ -390,6 +400,7 @@ struct BorrowedData<'a, 'b, T: Diffable + ?Sized> {
 }
 
 // This generates a struct that looks like:
+#[automatically_derived]
 struct BorrowedDataDiff<'daft, 'a: 'daft, 'b: 'daft, T: ?Sized + 'daft> {
     a: Leaf<'daft, &'a str>,
     b: T::Diff<'daft>,

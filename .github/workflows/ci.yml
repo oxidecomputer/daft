@@ -18,10 +18,17 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2.7.3
-      - name: Install cargo-sync-rdme and just
+      - name: Install just and cargo-hack
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-sync-rdme,just,cargo-hack
+          tool: just,cargo-hack
+      - name: Install fork of cargo-sync-rdme
+        # This is a fork of cargo-sync-rdme with a fix for
+        # https://github.com/gifnksm/cargo-sync-rdme/pull/514 included -- remove
+        # once merged upstream.
+        run: |
+          curl -LsSf https://github.com/sunshowers/cargo-sync-rdme/releases/download/v0.4.2-b.1%2Bsunshowers/cargo-sync-rdme-v0.4.2-b.1+sunshowers-x86_64-unknown-linux-gnu.tar.gz \
+            | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
       - name: Lint (clippy)
         run: just powerset clippy --all-targets
       - name: Lint (rustfmt)
