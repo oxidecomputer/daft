@@ -40,18 +40,25 @@ macro_rules! leaf_deref {
 /// This is supported for `BTreeMap` and `HashMap`
 #[cfg(feature = "alloc")]
 macro_rules! map_diff {
-    ($(($typ:ident, $key_constraint:ident)),*) => {
-        $(
+    ($(#[$doc:meta])* $typ:ident, $key_constraint:ident) => {
          paste::paste! {
-
+            $(#[$doc])*
             #[derive(Debug, PartialEq, Eq)]
             pub struct [<$typ Diff>]<'daft, K: $key_constraint + Eq, V> {
+                /// Entries common to both maps.
+                ///
+                /// Values are stored as `Leaf`s to references.
                 pub common: $typ<&'daft K, $crate::Leaf<&'daft V>>,
+
+                /// Entries present in the `after` map, but not in `before`.
                 pub added: $typ<&'daft K, &'daft V>,
+
+                /// Entries present in the `before` map, but not in `after`.
                 pub removed: $typ<&'daft K, &'daft V>,
             }
 
             impl<'daft, K: $key_constraint + Eq, V> [<$typ Diff>]<'daft, K, V> {
+                #[doc = "Create a new, empty `" $typ "Diff` instance."]
                 pub fn new() -> Self {
                     Self {
                         common: $typ::new(),
@@ -160,31 +167,32 @@ macro_rules! map_diff {
                     diff
                 }
             }
-
         }
-        )*
     }
 }
 
 /// Create a type `<SetType>Diff` and `impl Diffable` on it.
 ///
-/// This is supported for `BTreeSet` and `HashSet`
-/// We use Vecs rather than sets internally to avoid requiring key constraints
-/// on `Leafs`
+/// This is supported for `BTreeSet` and `HashSet`.
 #[cfg(feature = "alloc")]
 macro_rules! set_diff {
-    ($(($typ:ident, $key_constraint:ident)),*) => {
-        $(
-         paste::paste! {
-
+    ($(#[$doc:meta])* $typ:ident, $key_constraint:ident) => {
+        paste::paste! {
+            $(#[$doc])*
             #[derive(Debug, PartialEq, Eq)]
-            pub struct [<$typ Diff>]<'daft, K: $key_constraint + Eq>  {
+            pub struct [<$typ Diff>]<'daft, K: $key_constraint + Eq> {
+                /// Entries common to both sets.
                 pub common: $typ<&'daft K>,
+
+                /// Entries present in the `after` set, but not in `before`.
                 pub added: $typ<&'daft K>,
+
+                /// Entries present in the `before` set, but not in `after`.
                 pub removed: $typ<&'daft K>,
             }
 
             impl<'daft, K: $key_constraint + Eq> [<$typ Diff>]<'daft, K> {
+                #[doc = "Create a new, empty `" $typ "Diff` instance."]
                 pub fn new() -> Self {
                     Self {
                         common: $typ::new(),
@@ -215,8 +223,6 @@ macro_rules! set_diff {
                     diff
                 }
             }
-
         }
-        )*
     }
 }

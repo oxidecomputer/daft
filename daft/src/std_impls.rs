@@ -11,8 +11,92 @@ use std::{
 leaf! { Path, OsStr }
 leaf_deref! { PathBuf => Path, OsString => OsStr }
 
-map_diff!((HashMap, Hash));
-set_diff!((HashSet, Hash));
+map_diff!(
+    /// A diff of two [`HashMap`] instances.
+    ///
+    /// The diff contains three elements:
+    ///
+    /// - `common`: Entries that are present in both maps, with their values
+    ///   stored as a [`Leaf`][crate::Leaf].
+    /// - `added`: Entries present in `after`, but not in `before`.
+    /// - `removed`: Entries present in `before`, but not in `after`.
+    ///
+    /// If `V` implements `Eq`, `common` can be split into
+    /// [`unchanged`][Self::unchanged] and [`modified`][Self::modified] entries.
+    /// Additionally, if `V` implements [`Diffable`],
+    /// [`modified_diff`][Self::modified_diff] can be used to recursively diff
+    /// modified entries.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # #[cfg(feature = "std")] {
+    /// use daft::{Diffable, HashMapDiff, Leaf};
+    /// use std::collections::HashMap;
+    ///
+    /// let a: HashMap<usize, &str> =
+    ///     [(0, "lorem"), (1, "ipsum"), (2, "dolor")].into_iter().collect();
+    /// let b: HashMap<usize, &str> =
+    ///    [(1, "ipsum"), (2, "sit"), (3, "amet")].into_iter().collect();
+    ///
+    /// let changes = a.diff(&b);
+    /// let expected = HashMapDiff {
+    ///     // Keys are stored by reference and matched by equality.
+    ///     common: [
+    ///         (&1, Leaf { before: &"ipsum", after: &"ipsum" }),
+    ///         (&2, Leaf { before: &"dolor", after: &"sit" }),
+    ///     ].into_iter().collect(),
+    ///     added: [(&3, &"amet")].into_iter().collect(),
+    ///     removed: [(&0, &"lorem")].into_iter().collect(),
+    /// };
+    ///
+    /// assert_eq!(changes, expected);
+    ///
+    /// // If the values are `Eq`, it's also possible to get lists of
+    /// // modified and unchanged entries.
+    /// let mut unchanged = changes.unchanged().collect::<Vec<_>>();
+    /// unchanged.sort_by_key(|(k, _)| *k);
+    /// let mut modified = changes.modified().collect::<Vec<_>>();
+    /// modified.sort_by_key(|(k, _)| *k);
+    ///
+    /// assert_eq!(unchanged, [(&1, &"ipsum")]);
+    /// assert_eq!(modified, [(&2, Leaf { before: &"dolor", after: &"sit" })]);
+    /// # }
+    /// ```
+    HashMap, Hash
+);
+set_diff!(
+    /// A diff of two [`HashSet`] instances.
+    ///
+    /// The diff contains three elements:
+    ///
+    /// - `common`: Entries that are present in both sets.
+    /// - `added`: Entries present in `after`, but not in `before`.
+    /// - `removed`: Entries present in `before`, but not in `after`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # #[cfg(feature = "std")] {
+    /// use daft::{Diffable, HashSetDiff};
+    /// use std::collections::HashSet;
+    ///
+    /// let a: HashSet<usize> = [0, 1].into_iter().collect();
+    /// let b: HashSet<usize> = [1, 2].into_iter().collect();
+    ///
+    /// let changes = a.diff(&b);
+    /// let expected = HashSetDiff {
+    ///     // Entries are stored by reference and matched by equality.
+    ///     common: [&1].into_iter().collect(),
+    ///     added: [&2].into_iter().collect(),
+    ///     removed: [&0].into_iter().collect(),
+    /// };
+    ///
+    /// assert_eq!(changes, expected);
+    /// # }
+    /// ```
+    HashSet, Hash
+);
 
 #[cfg(test)]
 mod tests {
