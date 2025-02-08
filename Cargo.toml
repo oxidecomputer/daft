@@ -10,6 +10,7 @@ edition = "2021"
 repository = "https://github.com/oxidecomputer/daft"
 rust-version = "1.81.0"
 license = "MIT OR Apache-2.0"
+keywords = ["diff", "difference", "semantic-diff", "structural-diff"]
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(doc_cfg)"] }
