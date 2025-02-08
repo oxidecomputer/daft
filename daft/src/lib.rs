@@ -507,11 +507,6 @@ mod third_party;
 
 #[cfg(feature = "alloc")]
 pub use alloc_impls::*;
-pub use diffable::*;
-pub use leaf::*;
-#[cfg(feature = "std")]
-pub use std_impls::*;
-
 /// Derive macro for the [`Diffable`] trait.
 ///
 /// The behavior of this macro varies by type:
@@ -525,3 +520,7 @@ pub use std_impls::*;
 /// For more information, see the [crate-level documentation](crate).
 #[cfg(feature = "derive")]
 pub use daft_derive::Diffable;
+pub use diffable::*;
+pub use leaf::*;
+#[cfg(feature = "std")]
+pub use std_impls::*;
