@@ -422,7 +422,7 @@ Implementations for standard library types, all **enabled** by default:
 Implementations for third-party types, all **disabled** by default:
 
 * `uuid1`: Enable diffing for [`uuid::Uuid`](https://docs.rs/uuid/1.12.1/uuid/struct.Uuid.html).
-* `oxnet01`: Enable diffing for network types from the \[`oxnet`\] crate.
+* `oxnet01`: Enable diffing for network types from the [`oxnet`](https://docs.rs/oxnet/0.1.0/oxnet/index.html) crate.
 * `newtype-uuid1`: Enable diffing for [`newtype_uuid::TypedUuid`](https://docs.rs/newtype-uuid/1.2.1/newtype_uuid/struct.TypedUuid.html).
 
 ## Minimum supported Rust version (MSRV)
