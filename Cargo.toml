@@ -23,7 +23,7 @@ daft = { version = "0.1.0", path = "daft" }
 daft-derive = { version = "=0.1.0", path = "daft-derive" }
 expectorate = "1.1.0"
 newtype-uuid = "1.2.1"
-oxnet = { git = "https://github.com/oxidecomputer/oxnet" }
+oxnet = "0.1.0"
 paste = "1.0.15"
 prettyplease = "0.2.29"
 proc-macro2 = "1.0"

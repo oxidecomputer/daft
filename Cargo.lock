@@ -272,12 +272,9 @@ dependencies = [
 
 [[package]]
 name = "ipnetwork"
-version = "0.20.0"
+version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf466541e9d546596ee94f9f69590f89473455f88372423e0008fc1a7daf100e"
-dependencies = [
- "serde",
-]
+checksum = "cf370abdafd54d13e54a620e8c3e1145f28e46cc9d704bc6d94414559df41763"
 
 [[package]]
 name = "is_terminal_polyfill"
@@ -342,7 +339,8 @@ checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
 [[package]]
 name = "oxnet"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/oxnet#49ee85dcd294901031c3395ee773363db1cdc289"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff7aba867c36df803039621068faf1630d3039eb999c2f6c3950d1064d4fbbdf"
 dependencies = [
  "ipnetwork",
  "schemars",
