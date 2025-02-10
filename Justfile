@@ -21,4 +21,3 @@ rustdoc *args:
 generate-readmes:
     # Please install via cargo install --locked --git https://github.com/sunshowers/cargo-sync-rdme for now.
     cargo sync-rdme --toolchain nightly --workspace --all-features
-
