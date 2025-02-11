@@ -10,8 +10,8 @@
 <!-- cargo-sync-rdme rustdoc [[ -->
 Daft is a library to perform semantic diffs of Rust data structures.
 
-Daft consists of a trait called [`Diffable`](https://docs.rs/daft/0.1.0/daft/diffable/trait.Diffable.html), along with [a derive
-macro](https://docs.rs/daft-derive/0.1.0/daft_derive/derive.Diffable.html) by the same name. This trait represents the
+Daft consists of a trait called [`Diffable`](https://docs.rs/daft/0.1.1/daft/diffable/trait.Diffable.html), along with [a derive
+macro](https://docs.rs/daft-derive/0.1.1/daft_derive/derive.Diffable.html) by the same name. This trait represents the
 notion of a type for which two members can be simultaneously compared.
 
 ## Features
@@ -62,10 +62,10 @@ reversed.
 
 Currently, daft comes with a few kinds of diff types:
 
-#### [`Leaf`](https://docs.rs/daft/0.1.0/daft/leaf/struct.Leaf.html) instances
+#### [`Leaf`](https://docs.rs/daft/0.1.1/daft/leaf/struct.Leaf.html) instances
 
-A [`Leaf`](https://docs.rs/daft/0.1.0/daft/leaf/struct.Leaf.html) represents a logical *leaf node* or *base case* in a diff, i.e. a
-point at which diffing stops. [`Leaf`](https://docs.rs/daft/0.1.0/daft/leaf/struct.Leaf.html) instances are used for:
+A [`Leaf`](https://docs.rs/daft/0.1.1/daft/leaf/struct.Leaf.html) represents a logical *leaf node* or *base case* in a diff, i.e. a
+point at which diffing stops. [`Leaf`](https://docs.rs/daft/0.1.1/daft/leaf/struct.Leaf.html) instances are used for:
 
 * *Scalar* or *primitive types* like `i32`, `String`, `bool`, etc.
 * *Enums*, since diffing across variants is usually not meaningful.
@@ -125,8 +125,8 @@ assert_eq!(diff.after, &after);
 
 #### Map diffs
 
-For [`BTreeMap`] and [`HashMap`], daft has corresponding [`BTreeMapDiff`](https://docs.rs/daft/0.1.0/daft/alloc_impls/struct.BTreeMapDiff.html)
-and [`HashMapDiff`](https://docs.rs/daft/0.1.0/daft/std_impls/struct.HashMapDiff.html) types. These types have fields for *common*, *added*,
+For [`BTreeMap`] and [`HashMap`], daft has corresponding [`BTreeMapDiff`](https://docs.rs/daft/0.1.1/daft/alloc_impls/struct.BTreeMapDiff.html)
+and [`HashMapDiff`](https://docs.rs/daft/0.1.1/daft/std_impls/struct.HashMapDiff.html) types. These types have fields for *common*, *added*,
 and *removed* entries.
 
 Map diffs are performed eagerly for keys, but values are stored as leaf
@@ -181,8 +181,8 @@ assert_eq!(
 
 #### Set diffs
 
-For [`BTreeSet`] and [`HashSet`], daft has corresponding [`BTreeSetDiff`](https://docs.rs/daft/0.1.0/daft/alloc_impls/struct.BTreeSetDiff.html)
-and [`HashSetDiff`](https://docs.rs/daft/0.1.0/daft/std_impls/struct.HashSetDiff.html) types. These types have fields for *common*, *added*,
+For [`BTreeSet`] and [`HashSet`], daft has corresponding [`BTreeSetDiff`](https://docs.rs/daft/0.1.1/daft/alloc_impls/struct.BTreeSetDiff.html)
+and [`HashSetDiff`](https://docs.rs/daft/0.1.1/daft/std_impls/struct.HashSetDiff.html) types. These types have fields for *common*, *added*,
 and *removed* entries.
 
 Set diffs are performed eagerly.
@@ -204,7 +204,7 @@ assert_eq!(diff.removed, [&0, &1, &2].into_iter().collect());
 
 #### Tuple diffs
 
-For a tuple like `(A, B, C)`, the [`Diffable`](https://docs.rs/daft/0.1.0/daft/diffable/trait.Diffable.html) implementation is recursive:
+For a tuple like `(A, B, C)`, the [`Diffable`](https://docs.rs/daft/0.1.1/daft/diffable/trait.Diffable.html) implementation is recursive:
 the diff resolves to `(A::Diff, B::Diff, C::Diff)`.
 
 ##### Example
@@ -233,24 +233,24 @@ assert_eq!(
 
 #### Struct diffs
 
-For structs, the [`Diffable`](https://docs.rs/daft-derive/0.1.0/daft_derive/derive.Diffable.html) derive macro generates
+For structs, the [`Diffable`](https://docs.rs/daft-derive/0.1.1/daft_derive/derive.Diffable.html) derive macro generates
 a diff type with a field corresponding to each field type. Each field must
-implement [`Diffable`](https://docs.rs/daft/0.1.0/daft/diffable/trait.Diffable.html).
+implement [`Diffable`](https://docs.rs/daft/0.1.1/daft/diffable/trait.Diffable.html).
 
 A struct `Foo` gets a corresponding `FooDiff` struct, which has fields
 corresponding to each field in `Foo`.
 
 ##### Struct options
 
-* `#[daft(leaf)]`: if a **struct** is annotated with this, the [`Diffable`](https://docs.rs/daft/0.1.0/daft/diffable/trait.Diffable.html)
-  implementation for the struct will be a [`Leaf`](https://docs.rs/daft/0.1.0/daft/leaf/struct.Leaf.html) instead of a recursive
+* `#[daft(leaf)]`: if a **struct** is annotated with this, the [`Diffable`](https://docs.rs/daft/0.1.1/daft/diffable/trait.Diffable.html)
+  implementation for the struct will be a [`Leaf`](https://docs.rs/daft/0.1.1/daft/leaf/struct.Leaf.html) instead of a recursive
   diff.
 
 ##### Field options
 
 * `#[daft(leaf)]`: if a  **struct field** is annotated with this, the generated
-  struct’s corresponding field will be a [`Leaf`](https://docs.rs/daft/0.1.0/daft/leaf/struct.Leaf.html), regardless of the field’s
-  `Diff` type (or even whether it implements [`Diffable`](https://docs.rs/daft/0.1.0/daft/diffable/trait.Diffable.html) at all).
+  struct’s corresponding field will be a [`Leaf`](https://docs.rs/daft/0.1.1/daft/leaf/struct.Leaf.html), regardless of the field’s
+  `Diff` type (or even whether it implements [`Diffable`](https://docs.rs/daft/0.1.1/daft/diffable/trait.Diffable.html) at all).
 * `#[daft(ignore)]`: the generated struct’s corresponding field is not included
   in the diff.
 
@@ -349,7 +349,7 @@ assert_eq!(diff.plain, Leaf { before: &PlainStruct(1), after: &PlainStruct(2) })
 
 #### Custom diff types
 
-The [`Diffable`](https://docs.rs/daft/0.1.0/daft/diffable/trait.Diffable.html) trait can also be implemented manually for custom behavior.
+The [`Diffable`](https://docs.rs/daft/0.1.1/daft/diffable/trait.Diffable.html) trait can also be implemented manually for custom behavior.
 
 In general, most custom implementations will likely use one of the built-in
 diff types directly.
@@ -378,7 +378,7 @@ impl Diffable for Identifier {
 
 ### Type and lifetime parameters
 
-If a type parameter is specified, the [`Diffable`](https://docs.rs/daft-derive/0.1.0/daft_derive/derive.Diffable.html) derive
+If a type parameter is specified, the [`Diffable`](https://docs.rs/daft-derive/0.1.1/daft_derive/derive.Diffable.html) derive
 macro for structs normally requires that the type parameter implement
 `Diffable`. This is not required if the field is annotated with
 `#[daft(leaf)]`.
@@ -443,9 +443,9 @@ this crate and a great alternative. Daft diverges from diffus in a few ways:
   In practice, we’ve found that diffing enums across different variants is less
   useful than it first appears.
 
-* Daft has the notion of a [`Leaf`](https://docs.rs/daft/0.1.0/daft/leaf/struct.Leaf.html) type, which represents an atomic unit.
-  (For example, the [`Diffable`](https://docs.rs/daft/0.1.0/daft/diffable/trait.Diffable.html) implementation for `i32` is a [`Leaf`](https://docs.rs/daft/0.1.0/daft/leaf/struct.Leaf.html).)
-  [`Leaf`](https://docs.rs/daft/0.1.0/daft/leaf/struct.Leaf.html)s are also used for enums, as well as in any other place where lazy
+* Daft has the notion of a [`Leaf`](https://docs.rs/daft/0.1.1/daft/leaf/struct.Leaf.html) type, which represents an atomic unit.
+  (For example, the [`Diffable`](https://docs.rs/daft/0.1.1/daft/diffable/trait.Diffable.html) implementation for `i32` is a [`Leaf`](https://docs.rs/daft/0.1.1/daft/leaf/struct.Leaf.html).)
+  [`Leaf`](https://docs.rs/daft/0.1.1/daft/leaf/struct.Leaf.html)s are also used for enums, as well as in any other place where lazy
   diffing is desired.
 
 * Diffus has a `Same` trait, which is like `Eq` except it’s also implemented

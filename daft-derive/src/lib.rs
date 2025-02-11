@@ -3,7 +3,7 @@
 //! For more information about daft, see [its documentation](https://docs.rs/daft).
 // Setting html_root_url allows daft's readme to have links to daft-derive. This
 // line is updated by cargo-release.
-#![doc(html_root_url = "https://docs.rs/daft-derive/0.1.0")]
+#![doc(html_root_url = "https://docs.rs/daft-derive/0.1.1")]
 mod internals;
 
 use syn::parse_macro_input;
