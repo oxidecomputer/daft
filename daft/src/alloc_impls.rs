@@ -100,6 +100,8 @@ map_diff!(
     ///
     /// // If the values are `Eq`, it's also possible to get lists of
     /// // modified and unchanged entries.
+    /// assert!(changes.is_unchanged(&1));
+    /// assert!(changes.is_modified(&2));
     /// let unchanged = changes.unchanged().collect::<Vec<_>>();
     /// let modified = changes.modified().collect::<Vec<_>>();
     ///

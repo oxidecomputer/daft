@@ -72,42 +72,70 @@ macro_rules! map_diff {
                 /// Return an iterator over unchanged keys and values.
                 pub fn unchanged(&self) -> impl Iterator<Item = (&'daft K, &'daft V)> + '_ {
                     self.common.iter().filter_map(|(k, leaf)| {
-                        (leaf.before == leaf.after).then_some((*k, leaf.before))
+                        leaf.is_unchanged().then_some((*k, leaf.before))
+                    })
+                }
+
+                /// Return true if the value corresponding to the key is
+                /// unchanged.
+                pub fn is_unchanged(&self, key: &K) -> bool {
+                    self.common.get(key).is_some_and(|leaf| leaf.is_unchanged())
+                }
+
+                /// Return the value associated with the key if it is unchanged,
+                /// otherwise `None`.
+                pub fn get_unchanged(&self, key: &K) -> Option<&'daft V> {
+                    self.common.get(key).and_then(|leaf| {
+                        leaf.is_unchanged().then_some(leaf.before)
                     })
                 }
 
                 /// Return an iterator over unchanged keys.
                 pub fn unchanged_keys(&self) -> impl Iterator<Item = &'daft K> + '_ {
                     self.common.iter().filter_map(|(k, leaf)| {
-                        (leaf.before == leaf.after).then_some(*k)
+                        leaf.is_unchanged().then_some(*k)
                     })
                 }
 
                 /// Return an iterator over unchanged values.
                 pub fn unchanged_values(&self) -> impl Iterator<Item = &'daft V> + '_ {
                     self.common.iter().filter_map(|(_, leaf)| {
-                        (leaf.before == leaf.after).then_some(leaf.before)
+                        leaf.is_unchanged().then_some(leaf.before)
                     })
                 }
 
                 /// Return an iterator over modified keys and values.
                 pub fn modified(&self) -> impl Iterator<Item = (&'daft K, $crate::Leaf<&'daft V>)> + '_ {
                     self.common.iter().filter_map(|(k, leaf)| {
-                        (leaf.before != leaf.after).then_some((*k, *leaf))
+                        leaf.is_modified().then_some((*k, *leaf))
+                    })
+                }
+
+                /// Return true if the value corresponding to the key is
+                /// modified.
+                pub fn is_modified(&self, key: &K) -> bool {
+                    self.common.get(key).is_some_and(|leaf| leaf.is_modified())
+                }
+
+                /// Return the `Leaf` associated with the key if it is modified,
+                /// otherwise `None`.
+                pub fn get_modified(&self, key: &K) -> Option<$crate::Leaf<&'daft V>> {
+                    self.common.get(key).and_then(|leaf| {
+                        leaf.is_modified().then_some(*leaf)
                     })
                 }
 
                 /// Return an iterator over modified keys.
                 pub fn modified_keys(&self) -> impl Iterator<Item = &'daft K> + '_ {
                     self.common.iter().filter_map(|(k, leaf)| {
-                        (leaf.before != leaf.after).then_some(*k)
+                        leaf.is_modified().then_some(*k)
                     })
                 }
 
                 /// Return an iterator over modified values.
                 pub fn modified_values(&self) -> impl Iterator<Item = $crate::Leaf<&'daft V>> + '_ {
                     self.common.iter().filter_map(|(_, leaf)| {
-                        (leaf.before != leaf.after).then_some(*leaf)
+                        leaf.is_modified().then_some(*leaf)
                     })
                 }
 

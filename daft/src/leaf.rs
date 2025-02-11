@@ -102,6 +102,66 @@ impl<T> Leaf<T> {
     {
         Leaf { before: f(self.before), after: f(self.after) }
     }
+
+    /// Return true if before is the same as after.
+    ///
+    /// This is the same as `self.before == self.after`, but is easier to use in
+    /// a chained series of method calls.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use daft::{Diffable, Leaf};
+    ///
+    /// let before = "hello";
+    /// let after = "hello";
+    ///
+    /// let leaf: Leaf<&str> = Leaf { before, after };
+    /// assert!(leaf.is_unchanged());
+    ///
+    /// let before = "hello";
+    /// let after = "world";
+    ///
+    /// let leaf: Leaf<&str> = Leaf { before, after };
+    /// assert!(!leaf.is_unchanged());
+    /// ```
+    #[inline]
+    pub fn is_unchanged(&self) -> bool
+    where
+        T: Eq,
+    {
+        self.before == self.after
+    }
+
+    /// Return true if before is different from after.
+    ///
+    /// This is the same as `self.before != self.after`, but is easier to use in
+    /// a chained series of method calls.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use daft::{Diffable, Leaf};
+    ///
+    /// let before = "hello";
+    /// let after = "hello";
+    ///
+    /// let leaf: Leaf<&str> = Leaf { before, after };
+    /// assert!(!leaf.is_modified());
+    ///
+    /// let before = "hello";
+    /// let after = "world";
+    ///
+    /// let leaf: Leaf<&str> = Leaf { before, after };
+    /// assert!(leaf.is_modified());
+    /// ```
+    #[inline]
+    pub fn is_modified(&self) -> bool
+    where
+        T: Eq,
+    {
+        self.before != self.after
+    }
 }
 
 impl<'daft, T: ?Sized + Diffable> Leaf<&'daft T> {

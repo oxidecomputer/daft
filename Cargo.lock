@@ -149,7 +149,7 @@ dependencies = [
 
 [[package]]
 name = "daft"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "daft-derive",
  "newtype-uuid",
@@ -160,7 +160,7 @@ dependencies = [
 
 [[package]]
 name = "daft-derive"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "daft",
  "datatest-stable",

@@ -1,6 +1,6 @@
 [package]
 name = "daft"
-version = "0.1.0"
+version = "0.1.1"
 description = "Structural diffs of Rust data structures"
 readme = "README.md"
 categories = ["development-tools", "no-std::no-alloc"]
