@@ -38,3 +38,8 @@ license = true
 crates-io = true
 docs-rs = true
 rust-version = true
+
+[package.metadata.release]
+pre-release-replacements = [
+    { file = "src/lib.rs", search = "^#!\\[doc\\(html_root_url = \"https://docs.rs/daft-derive/.*\"\\)\\]$", replace = "#![doc(html_root_url = \"https://docs.rs/daft-derive/{{version}}\")]", exactly = 1 },
+]
