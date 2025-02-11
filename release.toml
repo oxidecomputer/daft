@@ -8,4 +8,7 @@ tag-message = "[{{crate_name}}] version {{version}}"
 tag-name = "daft-{{version}}"
 publish = false
 dependent-version = "upgrade"
+pre-release-replacements = [
+    { file = "daft-derive/src/lib.rs", search = "^#!\\[doc\\(html_root_url = \"https://docs.rs/daft-derive/.*\"\\)\\]$", replace = "#![doc(html_root_url = \"https://docs.rs/daft-derive/{{version}}\")]", exactly = 1 },
+]
 pre-release-hook = ["just", "generate-readmes"]
