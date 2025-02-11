@@ -21,3 +21,11 @@ rustdoc *args:
 generate-readmes:
     # Please install via cargo install --locked --git https://github.com/sunshowers/cargo-sync-rdme for now.
     cargo sync-rdme --toolchain nightly --workspace --all-features
+
+# Run cargo release in CI.
+ci-cargo-release:
+    # cargo-release requires a release off a branch.
+    git checkout -B to-release
+    cargo release publish --publish --execute --no-confirm --workspace
+    git checkout -
+    git branch -D to-release
