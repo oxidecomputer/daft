@@ -29,6 +29,10 @@ newtype-uuid1 = ["dep:newtype-uuid"]
 oxnet01 = ["dep:oxnet"]
 uuid1 = ["dep:uuid"]
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg=doc_cfg"]
+
 [package.metadata.cargo-sync-rdme.badge.badges]
 license = true
 crates-io = true
