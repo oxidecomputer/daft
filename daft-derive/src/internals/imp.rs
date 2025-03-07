@@ -347,8 +347,9 @@ fn make_diff_struct(
     let (impl_gen, ty_gen, _) = &new_generics.split_for_impl();
 
     let debug_impl = {
-        let where_clause = diff_fields
-            .where_clause_with_trait_bound(&parse_quote! { ::core::fmt::Debug });
+        let where_clause = diff_fields.where_clause_with_trait_bound(
+            &parse_quote! { ::core::fmt::Debug },
+        );
         let members = diff_fields.fields.members();
 
         let finish = if non_exhaustive.is_some() {
