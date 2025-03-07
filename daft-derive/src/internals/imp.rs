@@ -1,54 +1,50 @@
 use super::error_store::{ErrorSink, ErrorStore};
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
-    parse_quote, parse_str, visit::Visit, Attribute, Data, DataStruct,
-    DeriveInput, Expr, Field, Fields, GenericParam, Generics, Index, Lifetime,
-    LifetimeParam, Path, Token, WhereClause, WherePredicate,
+    parse_quote, parse_quote_spanned, parse_str, spanned::Spanned,
+    visit::Visit, Attribute, Data, DataStruct, DeriveInput, Expr, Field,
+    Fields, GenericParam, Generics, Index, Lifetime, LifetimeParam, Path,
+    Token, WhereClause, WherePredicate,
 };
 
-pub fn derive_diffable(input: syn::DeriveInput) -> TokenStream {
+pub struct DeriveDiffableOutput {
+    pub out: Option<TokenStream>,
+    pub errors: Vec<syn::Error>,
+}
+
+impl ToTokens for DeriveDiffableOutput {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.out.clone());
+        tokens.extend(self.errors.iter().map(|error| error.to_compile_error()));
+    }
+}
+
+pub fn derive_diffable(input: syn::DeriveInput) -> DeriveDiffableOutput {
     let mut error_store = ErrorStore::new();
 
     match &input.data {
         Data::Enum(_) => {
             // Implement all Enums as `Leaf`s
             let out = make_leaf(&input, AttrPosition::Enum, error_store.sink());
-            // Errors might have occurred while parsing attributes.
-            let errors = error_store
-                .into_inner()
-                .into_iter()
-                .map(|error| error.into_compile_error());
-            quote! {
-                #out
-                #(#errors)*
+            DeriveDiffableOutput {
+                out: Some(out),
+                errors: error_store.into_inner(),
             }
         }
         Data::Struct(s) => {
             // This might be None if there are errors.
             let out = make_struct_impl(&input, s, error_store.sink());
-            let errors = error_store
-                .into_inner()
-                .into_iter()
-                .map(|error| error.into_compile_error());
-            quote! {
-                #out
-                #(#errors)*
-            }
+            DeriveDiffableOutput { out, errors: error_store.into_inner() }
         }
 
         Data::Union(_) => {
             // Implement all unions as `Leaf`s
             let out =
                 make_leaf(&input, AttrPosition::Union, error_store.sink());
-            // Errors might have occurred while parsing attributes.
-            let errors = error_store
-                .into_inner()
-                .into_iter()
-                .map(|error| error.into_compile_error());
-            quote! {
-                #out
-                #(#errors)*
+            DeriveDiffableOutput {
+                out: Some(out),
+                errors: error_store.into_inner(),
             }
         }
     }
@@ -568,11 +564,11 @@ impl DiffFields {
         let mut f = f.clone();
 
         f.ty = if config.mode == FieldMode::Leaf {
-            parse_quote! {
+            parse_quote_spanned! {f.span()=>
                 #daft_crate::Leaf<&#lt #ty>
             }
         } else {
-            parse_quote! {
+            parse_quote_spanned! {f.span()=>
                 <#ty as #daft_crate::Diffable>::Diff<#lt>
             }
         };
@@ -596,7 +592,7 @@ impl DiffFields {
         trait_bound: &syn::TraitBound,
     ) -> WhereClause {
         let predicates = self.types().map(|ty| -> WherePredicate {
-            parse_quote! {
+            parse_quote_spanned! {ty.span()=>
                 #ty: #trait_bound
             }
         });
@@ -632,14 +628,14 @@ fn generate_field_diffs(
                 }
             };
             if config.mode == FieldMode::Leaf {
-                quote! {
+                quote_spanned! {f.span()=>
                     #field_name: #daft_crate::Leaf {
                         before: &self.#field_name,
                         after: &other.#field_name
                     }
                 }
             } else {
-                quote! {
+                quote_spanned! {f.span()=>
                     #field_name: #daft_crate::Diffable::diff(
                         &self.#field_name,
                         &other.#field_name
