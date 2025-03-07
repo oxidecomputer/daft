@@ -1,3 +1,6 @@
+// Check that no-std works.
+#![no_std]
+
 use daft::Diffable;
 
 #[derive(Debug, Eq, PartialEq, Diffable)]

@@ -1,54 +1,50 @@
 use super::error_store::{ErrorSink, ErrorStore};
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
-    parse_quote, parse_str, visit::Visit, Attribute, Data, DataStruct,
-    DeriveInput, Expr, Field, Fields, GenericParam, Generics, Index, Lifetime,
-    LifetimeParam, Path, Token, WhereClause, WherePredicate,
+    parse_quote, parse_quote_spanned, parse_str, spanned::Spanned,
+    visit::Visit, Attribute, Data, DataStruct, DeriveInput, Expr, Field,
+    Fields, GenericParam, Generics, Index, Lifetime, LifetimeParam, Path,
+    Token, WhereClause, WherePredicate,
 };
 
-pub fn derive_diffable(input: syn::DeriveInput) -> TokenStream {
+pub struct DeriveDiffableOutput {
+    pub out: Option<TokenStream>,
+    pub errors: Vec<syn::Error>,
+}
+
+impl ToTokens for DeriveDiffableOutput {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.out.clone());
+        tokens.extend(self.errors.iter().map(|error| error.to_compile_error()));
+    }
+}
+
+pub fn derive_diffable(input: syn::DeriveInput) -> DeriveDiffableOutput {
     let mut error_store = ErrorStore::new();
 
     match &input.data {
         Data::Enum(_) => {
             // Implement all Enums as `Leaf`s
             let out = make_leaf(&input, AttrPosition::Enum, error_store.sink());
-            // Errors might have occurred while parsing attributes.
-            let errors = error_store
-                .into_inner()
-                .into_iter()
-                .map(|error| error.into_compile_error());
-            quote! {
-                #out
-                #(#errors)*
+            DeriveDiffableOutput {
+                out: Some(out),
+                errors: error_store.into_inner(),
             }
         }
         Data::Struct(s) => {
             // This might be None if there are errors.
             let out = make_struct_impl(&input, s, error_store.sink());
-            let errors = error_store
-                .into_inner()
-                .into_iter()
-                .map(|error| error.into_compile_error());
-            quote! {
-                #out
-                #(#errors)*
-            }
+            DeriveDiffableOutput { out, errors: error_store.into_inner() }
         }
 
         Data::Union(_) => {
             // Implement all unions as `Leaf`s
             let out =
                 make_leaf(&input, AttrPosition::Union, error_store.sink());
-            // Errors might have occurred while parsing attributes.
-            let errors = error_store
-                .into_inner()
-                .into_iter()
-                .map(|error| error.into_compile_error());
-            quote! {
-                #out
-                #(#errors)*
+            DeriveDiffableOutput {
+                out: Some(out),
+                errors: error_store.into_inner(),
             }
         }
     }
@@ -352,7 +348,7 @@ fn make_diff_struct(
 
     let debug_impl = {
         let where_clause = diff_fields
-            .where_clause_with_trait_bound(&parse_quote! { ::std::fmt::Debug });
+            .where_clause_with_trait_bound(&parse_quote! { ::core::fmt::Debug });
         let members = diff_fields.fields.members();
 
         let finish = if non_exhaustive.is_some() {
@@ -384,8 +380,8 @@ fn make_diff_struct(
             },
         };
         quote! {
-            impl #impl_gen ::std::fmt::Debug for #name #ty_gen #where_clause {
-                fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+            impl #impl_gen ::core::fmt::Debug for #name #ty_gen #where_clause {
+                fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                     #debug_body
                 }
             }
@@ -394,7 +390,7 @@ fn make_diff_struct(
 
     let partial_eq_impl = {
         let where_clause = diff_fields.where_clause_with_trait_bound(
-            &parse_quote! { ::std::cmp::PartialEq },
+            &parse_quote! { ::core::cmp::PartialEq },
         );
         let members = diff_fields.fields.members();
 
@@ -403,7 +399,7 @@ fn make_diff_struct(
         };
 
         quote! {
-            impl #impl_gen ::std::cmp::PartialEq for #name #ty_gen #where_clause {
+            impl #impl_gen ::core::cmp::PartialEq for #name #ty_gen #where_clause {
                 fn eq(&self, other: &Self) -> bool {
                     #partial_eq_body
                 }
@@ -413,10 +409,10 @@ fn make_diff_struct(
 
     let eq_impl = {
         let where_clause = diff_fields
-            .where_clause_with_trait_bound(&parse_quote! { ::std::cmp::Eq });
+            .where_clause_with_trait_bound(&parse_quote! { ::core::cmp::Eq });
 
         quote! {
-            impl #impl_gen ::std::cmp::Eq for #name #ty_gen #where_clause {}
+            impl #impl_gen ::core::cmp::Eq for #name #ty_gen #where_clause {}
         }
     };
 
@@ -568,11 +564,11 @@ impl DiffFields {
         let mut f = f.clone();
 
         f.ty = if config.mode == FieldMode::Leaf {
-            parse_quote! {
+            parse_quote_spanned! {f.span()=>
                 #daft_crate::Leaf<&#lt #ty>
             }
         } else {
-            parse_quote! {
+            parse_quote_spanned! {f.span()=>
                 <#ty as #daft_crate::Diffable>::Diff<#lt>
             }
         };
@@ -596,7 +592,7 @@ impl DiffFields {
         trait_bound: &syn::TraitBound,
     ) -> WhereClause {
         let predicates = self.types().map(|ty| -> WherePredicate {
-            parse_quote! {
+            parse_quote_spanned! {ty.span()=>
                 #ty: #trait_bound
             }
         });
@@ -632,14 +628,14 @@ fn generate_field_diffs(
                 }
             };
             if config.mode == FieldMode::Leaf {
-                quote! {
+                quote_spanned! {f.span()=>
                     #field_name: #daft_crate::Leaf {
                         before: &self.#field_name,
                         after: &other.#field_name
                     }
                 }
             } else {
-                quote! {
+                quote_spanned! {f.span()=>
                     #field_name: #daft_crate::Diffable::diff(
                         &self.#field_name,
                         &other.#field_name
