@@ -6,6 +6,7 @@
 #![doc(html_root_url = "https://docs.rs/daft-derive/0.1.1")]
 mod internals;
 
+use quote::ToTokens;
 use syn::parse_macro_input;
 
 // NOTE: We do not define documentation here -- only in daft while re-exporting
@@ -16,5 +17,5 @@ pub fn derive_diffable(
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as syn::DeriveInput);
-    internals::derive_diffable(input).into()
+    internals::derive_diffable(input).into_token_stream().into()
 }
