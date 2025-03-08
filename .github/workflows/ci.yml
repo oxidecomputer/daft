@@ -64,7 +64,7 @@ jobs:
       - uses: taiki-e/install-action@nextest
       - name: Build
         run: just powerset build
-      - name: Test without ui_test
+      - name: Run tests
         run: just powerset nextest run
       - name: Doctests
         run: just powerset test --doc
