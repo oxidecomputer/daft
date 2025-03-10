@@ -1,10 +1,11 @@
 use super::error_store::{ErrorSink, ErrorStore};
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
-    parse_quote, parse_str, visit::Visit, Attribute, Data, DataStruct,
-    DeriveInput, Expr, Field, Fields, GenericParam, Generics, Index, Lifetime,
-    LifetimeParam, Path, Token, WhereClause, WherePredicate,
+    parse_quote, parse_quote_spanned, parse_str, spanned::Spanned,
+    visit::Visit, Attribute, Data, DataStruct, DeriveInput, Expr, Field,
+    Fields, GenericParam, Generics, Index, Lifetime, LifetimeParam, Path,
+    Token, WhereClause, WherePredicate,
 };
 
 pub struct DeriveDiffableOutput {
@@ -563,11 +564,11 @@ impl DiffFields {
         let mut f = f.clone();
 
         f.ty = if config.mode == FieldMode::Leaf {
-            parse_quote! {
+            parse_quote_spanned! {f.span()=>
                 #daft_crate::Leaf<&#lt #ty>
             }
         } else {
-            parse_quote! {
+            parse_quote_spanned! {f.span()=>
                 <#ty as #daft_crate::Diffable>::Diff<#lt>
             }
         };
@@ -591,7 +592,7 @@ impl DiffFields {
         trait_bound: &syn::TraitBound,
     ) -> WhereClause {
         let predicates = self.types().map(|ty| -> WherePredicate {
-            parse_quote! {
+            parse_quote_spanned! {ty.span()=>
                 #ty: #trait_bound
             }
         });
@@ -627,14 +628,14 @@ fn generate_field_diffs(
                 }
             };
             if config.mode == FieldMode::Leaf {
-                quote! {
+                quote_spanned! {f.span()=>
                     #field_name: #daft_crate::Leaf {
                         before: &self.#field_name,
                         after: &other.#field_name
                     }
                 }
             } else {
-                quote! {
+                quote_spanned! {f.span()=>
                     #field_name: #daft_crate::Diffable::diff(
                         &self.#field_name,
                         &other.#field_name

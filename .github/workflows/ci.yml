@@ -41,8 +41,35 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
+      fail-fast: false
+    env:
+      RUSTFLAGS: -D warnings
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+      - name: Install toolchain in rust-toolchain.toml
+        # GitHub Actions has an older rustup as of 2025-03-07 which doesn't accept
+        # `rustup toolchain install` with no arguments. Update rustup first.
+        run: rustup self update && rustup toolchain install
+      - uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2
+      - uses: taiki-e/install-action@cargo-hack
+      - uses: taiki-e/install-action@just
+      - uses: taiki-e/install-action@nextest
+      - name: Build
+        run: just powerset build
+      - name: Run tests
+        run: just powerset nextest run
+      - name: Doctests
+        run: just powerset test --doc
+    
+  build-and-test-msrv:
+    name: Build and test (MSRV)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
         # 1.81 is the MSRV
-        rust-version: ["1.81", stable]
+        rust-version: ["1.81"]
       fail-fast: false
     env:
       RUSTFLAGS: -D warnings
@@ -54,7 +81,11 @@ jobs:
       - uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84 # v2
       - uses: taiki-e/install-action@cargo-hack
       - uses: taiki-e/install-action@just
+      - uses: taiki-e/install-action@nextest
       - name: Build
         run: just powerset build
-      - name: Test
-        run: just powerset test
+      # We don't run ui_test on the MSRV since compiler output varies by version.
+      - name: Test without ui_test
+        run: just powerset nextest run -E 'not binary(ui_test)'
+      - name: Doctests
+        run: just powerset test --doc
