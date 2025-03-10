@@ -5,18 +5,18 @@ struct WithAttrsDiff<'__daft> {
     e: ::daft::Leaf<&'__daft usize>,
     f: <usize as ::daft::Diffable>::Diff<'__daft>,
 }
-impl<'__daft> ::std::fmt::Debug for WithAttrsDiff<'__daft>
+impl<'__daft> ::core::fmt::Debug for WithAttrsDiff<'__daft>
 where
-    <i32 as ::daft::Diffable>::Diff<'__daft>: ::std::fmt::Debug,
+    <i32 as ::daft::Diffable>::Diff<'__daft>: ::core::fmt::Debug,
     <BTreeMap<
         Uuid,
         BTreeSet<usize>,
-    > as ::daft::Diffable>::Diff<'__daft>: ::std::fmt::Debug,
-    ::daft::Leaf<&'__daft Lazy>: ::std::fmt::Debug,
-    ::daft::Leaf<&'__daft usize>: ::std::fmt::Debug,
-    <usize as ::daft::Diffable>::Diff<'__daft>: ::std::fmt::Debug,
+    > as ::daft::Diffable>::Diff<'__daft>: ::core::fmt::Debug,
+    ::daft::Leaf<&'__daft Lazy>: ::core::fmt::Debug,
+    ::daft::Leaf<&'__daft usize>: ::core::fmt::Debug,
+    <usize as ::daft::Diffable>::Diff<'__daft>: ::core::fmt::Debug,
 {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
         f.debug_struct(stringify!(WithAttrsDiff))
             .field(stringify!(a), &self.a)
             .field(stringify!(b), &self.b)
@@ -26,29 +26,32 @@ where
             .finish()
     }
 }
-impl<'__daft> ::std::cmp::PartialEq for WithAttrsDiff<'__daft>
+impl<'__daft> ::core::cmp::PartialEq for WithAttrsDiff<'__daft>
 where
-    <i32 as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::PartialEq,
+    <i32 as ::daft::Diffable>::Diff<'__daft>: ::core::cmp::PartialEq,
     <BTreeMap<
         Uuid,
         BTreeSet<usize>,
-    > as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::PartialEq,
-    ::daft::Leaf<&'__daft Lazy>: ::std::cmp::PartialEq,
-    ::daft::Leaf<&'__daft usize>: ::std::cmp::PartialEq,
-    <usize as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::PartialEq,
+    > as ::daft::Diffable>::Diff<'__daft>: ::core::cmp::PartialEq,
+    ::daft::Leaf<&'__daft Lazy>: ::core::cmp::PartialEq,
+    ::daft::Leaf<&'__daft usize>: ::core::cmp::PartialEq,
+    <usize as ::daft::Diffable>::Diff<'__daft>: ::core::cmp::PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         self.a == other.a && self.b == other.b && self.d == other.d && self.e == other.e
             && self.f == other.f
     }
 }
-impl<'__daft> ::std::cmp::Eq for WithAttrsDiff<'__daft>
+impl<'__daft> ::core::cmp::Eq for WithAttrsDiff<'__daft>
 where
-    <i32 as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::Eq,
-    <BTreeMap<Uuid, BTreeSet<usize>> as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::Eq,
-    ::daft::Leaf<&'__daft Lazy>: ::std::cmp::Eq,
-    ::daft::Leaf<&'__daft usize>: ::std::cmp::Eq,
-    <usize as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::Eq,
+    <i32 as ::daft::Diffable>::Diff<'__daft>: ::core::cmp::Eq,
+    <BTreeMap<
+        Uuid,
+        BTreeSet<usize>,
+    > as ::daft::Diffable>::Diff<'__daft>: ::core::cmp::Eq,
+    ::daft::Leaf<&'__daft Lazy>: ::core::cmp::Eq,
+    ::daft::Leaf<&'__daft usize>: ::core::cmp::Eq,
+    <usize as ::daft::Diffable>::Diff<'__daft>: ::core::cmp::Eq,
 {}
 impl ::daft::Diffable for WithAttrs {
     type Diff<'__daft> = WithAttrsDiff<'__daft> where Self: '__daft;
@@ -72,31 +75,31 @@ struct LazyDiff<'__daft> {
     x: <usize as ::daft::Diffable>::Diff<'__daft>,
     y: <usize as ::daft::Diffable>::Diff<'__daft>,
 }
-impl<'__daft> ::std::fmt::Debug for LazyDiff<'__daft>
+impl<'__daft> ::core::fmt::Debug for LazyDiff<'__daft>
 where
-    <usize as ::daft::Diffable>::Diff<'__daft>: ::std::fmt::Debug,
-    <usize as ::daft::Diffable>::Diff<'__daft>: ::std::fmt::Debug,
+    <usize as ::daft::Diffable>::Diff<'__daft>: ::core::fmt::Debug,
+    <usize as ::daft::Diffable>::Diff<'__daft>: ::core::fmt::Debug,
 {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
         f.debug_struct(stringify!(LazyDiff))
             .field(stringify!(x), &self.x)
             .field(stringify!(y), &self.y)
             .finish()
     }
 }
-impl<'__daft> ::std::cmp::PartialEq for LazyDiff<'__daft>
+impl<'__daft> ::core::cmp::PartialEq for LazyDiff<'__daft>
 where
-    <usize as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::PartialEq,
-    <usize as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::PartialEq,
+    <usize as ::daft::Diffable>::Diff<'__daft>: ::core::cmp::PartialEq,
+    <usize as ::daft::Diffable>::Diff<'__daft>: ::core::cmp::PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         self.x == other.x && self.y == other.y
     }
 }
-impl<'__daft> ::std::cmp::Eq for LazyDiff<'__daft>
+impl<'__daft> ::core::cmp::Eq for LazyDiff<'__daft>
 where
-    <usize as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::Eq,
-    <usize as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::Eq,
+    <usize as ::daft::Diffable>::Diff<'__daft>: ::core::cmp::Eq,
+    <usize as ::daft::Diffable>::Diff<'__daft>: ::core::cmp::Eq,
 {}
 impl ::daft::Diffable for Lazy {
     type Diff<'__daft> = LazyDiff<'__daft> where Self: '__daft;

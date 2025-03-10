@@ -3,31 +3,31 @@ struct NonExhaustiveDiff<'__daft> {
     pub a: <i32 as ::daft::Diffable>::Diff<'__daft>,
     pub b: <i32 as ::daft::Diffable>::Diff<'__daft>,
 }
-impl<'__daft> ::std::fmt::Debug for NonExhaustiveDiff<'__daft>
+impl<'__daft> ::core::fmt::Debug for NonExhaustiveDiff<'__daft>
 where
-    <i32 as ::daft::Diffable>::Diff<'__daft>: ::std::fmt::Debug,
-    <i32 as ::daft::Diffable>::Diff<'__daft>: ::std::fmt::Debug,
+    <i32 as ::daft::Diffable>::Diff<'__daft>: ::core::fmt::Debug,
+    <i32 as ::daft::Diffable>::Diff<'__daft>: ::core::fmt::Debug,
 {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
         f.debug_struct(stringify!(NonExhaustiveDiff))
             .field(stringify!(a), &self.a)
             .field(stringify!(b), &self.b)
             .finish_non_exhaustive()
     }
 }
-impl<'__daft> ::std::cmp::PartialEq for NonExhaustiveDiff<'__daft>
+impl<'__daft> ::core::cmp::PartialEq for NonExhaustiveDiff<'__daft>
 where
-    <i32 as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::PartialEq,
-    <i32 as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::PartialEq,
+    <i32 as ::daft::Diffable>::Diff<'__daft>: ::core::cmp::PartialEq,
+    <i32 as ::daft::Diffable>::Diff<'__daft>: ::core::cmp::PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         self.a == other.a && self.b == other.b
     }
 }
-impl<'__daft> ::std::cmp::Eq for NonExhaustiveDiff<'__daft>
+impl<'__daft> ::core::cmp::Eq for NonExhaustiveDiff<'__daft>
 where
-    <i32 as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::Eq,
-    <i32 as ::daft::Diffable>::Diff<'__daft>: ::std::cmp::Eq,
+    <i32 as ::daft::Diffable>::Diff<'__daft>: ::core::cmp::Eq,
+    <i32 as ::daft::Diffable>::Diff<'__daft>: ::core::cmp::Eq,
 {}
 impl ::daft::Diffable for NonExhaustive {
     type Diff<'__daft> = NonExhaustiveDiff<'__daft> where Self: '__daft;

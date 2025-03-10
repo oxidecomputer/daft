@@ -347,8 +347,9 @@ fn make_diff_struct(
     let (impl_gen, ty_gen, _) = &new_generics.split_for_impl();
 
     let debug_impl = {
-        let where_clause = diff_fields
-            .where_clause_with_trait_bound(&parse_quote! { ::std::fmt::Debug });
+        let where_clause = diff_fields.where_clause_with_trait_bound(
+            &parse_quote! { ::core::fmt::Debug },
+        );
         let members = diff_fields.fields.members();
 
         let finish = if non_exhaustive.is_some() {
@@ -380,8 +381,8 @@ fn make_diff_struct(
             },
         };
         quote! {
-            impl #impl_gen ::std::fmt::Debug for #name #ty_gen #where_clause {
-                fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+            impl #impl_gen ::core::fmt::Debug for #name #ty_gen #where_clause {
+                fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                     #debug_body
                 }
             }
@@ -390,7 +391,7 @@ fn make_diff_struct(
 
     let partial_eq_impl = {
         let where_clause = diff_fields.where_clause_with_trait_bound(
-            &parse_quote! { ::std::cmp::PartialEq },
+            &parse_quote! { ::core::cmp::PartialEq },
         );
         let members = diff_fields.fields.members();
 
@@ -399,7 +400,7 @@ fn make_diff_struct(
         };
 
         quote! {
-            impl #impl_gen ::std::cmp::PartialEq for #name #ty_gen #where_clause {
+            impl #impl_gen ::core::cmp::PartialEq for #name #ty_gen #where_clause {
                 fn eq(&self, other: &Self) -> bool {
                     #partial_eq_body
                 }
@@ -409,10 +410,10 @@ fn make_diff_struct(
 
     let eq_impl = {
         let where_clause = diff_fields
-            .where_clause_with_trait_bound(&parse_quote! { ::std::cmp::Eq });
+            .where_clause_with_trait_bound(&parse_quote! { ::core::cmp::Eq });
 
         quote! {
-            impl #impl_gen ::std::cmp::Eq for #name #ty_gen #where_clause {}
+            impl #impl_gen ::core::cmp::Eq for #name #ty_gen #where_clause {}
         }
     };
 
