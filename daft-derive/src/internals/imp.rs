@@ -7,48 +7,43 @@ use syn::{
     LifetimeParam, Path, Token, WhereClause, WherePredicate,
 };
 
-pub fn derive_diffable(input: syn::DeriveInput) -> TokenStream {
+pub struct DeriveDiffableOutput {
+    pub out: Option<TokenStream>,
+    pub errors: Vec<syn::Error>,
+}
+
+impl ToTokens for DeriveDiffableOutput {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.out.clone());
+        tokens.extend(self.errors.iter().map(|error| error.to_compile_error()));
+    }
+}
+
+pub fn derive_diffable(input: syn::DeriveInput) -> DeriveDiffableOutput {
     let mut error_store = ErrorStore::new();
 
     match &input.data {
         Data::Enum(_) => {
             // Implement all Enums as `Leaf`s
             let out = make_leaf(&input, AttrPosition::Enum, error_store.sink());
-            // Errors might have occurred while parsing attributes.
-            let errors = error_store
-                .into_inner()
-                .into_iter()
-                .map(|error| error.into_compile_error());
-            quote! {
-                #out
-                #(#errors)*
+            DeriveDiffableOutput {
+                out: Some(out),
+                errors: error_store.into_inner(),
             }
         }
         Data::Struct(s) => {
             // This might be None if there are errors.
             let out = make_struct_impl(&input, s, error_store.sink());
-            let errors = error_store
-                .into_inner()
-                .into_iter()
-                .map(|error| error.into_compile_error());
-            quote! {
-                #out
-                #(#errors)*
-            }
+            DeriveDiffableOutput { out, errors: error_store.into_inner() }
         }
 
         Data::Union(_) => {
             // Implement all unions as `Leaf`s
             let out =
                 make_leaf(&input, AttrPosition::Union, error_store.sink());
-            // Errors might have occurred while parsing attributes.
-            let errors = error_store
-                .into_inner()
-                .into_iter()
-                .map(|error| error.into_compile_error());
-            quote! {
-                #out
-                #(#errors)*
+            DeriveDiffableOutput {
+                out: Some(out),
+                errors: error_store.into_inner(),
             }
         }
     }
