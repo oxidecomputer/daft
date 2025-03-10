@@ -49,8 +49,15 @@ fn run_derive_macro(
 ) -> impl Iterator<Item = internals::DeriveDiffableOutput> + '_ {
     // Look for structs and enums in the input -- give them to the derive macro.
     let items = data.items.iter().filter_map(|item| match item {
-        syn::Item::Struct(item) => Some(item.to_token_stream()),
-        syn::Item::Enum(item) => Some(item.to_token_stream()),
+        syn::Item::Struct(item) => {
+            has_derive_diffable(&item.attrs).then(|| item.to_token_stream())
+        }
+        syn::Item::Enum(item) => {
+            has_derive_diffable(&item.attrs).then(|| item.to_token_stream())
+        }
+        syn::Item::Union(item) => {
+            has_derive_diffable(&item.attrs).then(|| item.to_token_stream())
+        }
         _ => None,
     });
 
@@ -60,6 +67,24 @@ fn run_derive_macro(
             panic!("failed to parse item {}: {}", i, err);
         });
         internals::derive_diffable(data)
+    })
+}
+
+fn has_derive_diffable(attrs: &[syn::Attribute]) -> bool {
+    attrs.iter().any(|attr| {
+        if !attr.path().is_ident("derive") {
+            return false;
+        }
+
+        let mut is_diffable = false;
+        attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("Diffable") {
+                is_diffable = true;
+            }
+            Ok(())
+        })
+        .expect("derive attributes parsed correctly");
+        is_diffable
     })
 }
 
