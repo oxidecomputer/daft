@@ -11,7 +11,7 @@
 Daft is a library to perform semantic diffs of Rust data structures.
 
 Daft consists of a trait called [`Diffable`](https://docs.rs/daft/0.1.1/daft/diffable/trait.Diffable.html), along with [a derive
-macro](https://docs.rs/daft-derive/0.1.1/daft_derive/derive.Diffable.html) by the same name. This trait represents the
+macro](https://docs.rs/daft-derive/0.1.2/daft_derive/derive.Diffable.html) by the same name. This trait represents the
 notion of a type for which two members can be simultaneously compared.
 
 ## Features
@@ -233,7 +233,7 @@ assert_eq!(
 
 #### Struct diffs
 
-For structs, the [`Diffable`](https://docs.rs/daft-derive/0.1.1/daft_derive/derive.Diffable.html) derive macro generates
+For structs, the [`Diffable`](https://docs.rs/daft-derive/0.1.2/daft_derive/derive.Diffable.html) derive macro generates
 a diff type with a field corresponding to each field type. Each field must
 implement [`Diffable`](https://docs.rs/daft/0.1.1/daft/diffable/trait.Diffable.html).
 
@@ -378,7 +378,7 @@ impl Diffable for Identifier {
 
 ### Type and lifetime parameters
 
-If a type parameter is specified, the [`Diffable`](https://docs.rs/daft-derive/0.1.1/daft_derive/derive.Diffable.html) derive
+If a type parameter is specified, the [`Diffable`](https://docs.rs/daft-derive/0.1.2/daft_derive/derive.Diffable.html) derive
 macro for structs normally requires that the type parameter implement
 `Diffable`. This is not required if the field is annotated with
 `#[daft(leaf)]`.
