@@ -657,6 +657,7 @@ impl StructConfig {
         attrs: &[Attribute],
         errors: ErrorSink<'_, syn::Error>,
     ) -> Option<Self> {
+        let mut duplicates = Vec::new();
         let mut mode = StructMode::Default;
 
         for attr in attrs {
@@ -669,7 +670,7 @@ impl StructConfig {
                                     mode = StructMode::Leaf;
                                 }
                                 StructMode::Leaf => {
-                                    errors.push(meta.error(
+                                    duplicates.push(meta.error(
                                     "#[daft(leaf)] specified multiple times",
                                 ));
                                 }
@@ -694,6 +695,9 @@ impl StructConfig {
         if errors.has_errors() {
             None
         } else {
+            for error in duplicates {
+                errors.push(error);
+            }
             Some(Self { mode })
         }
     }
