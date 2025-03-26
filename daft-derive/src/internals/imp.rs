@@ -693,6 +693,9 @@ impl StructConfig {
         }
 
         if errors.has_errors() {
+            for error in duplicates {
+                errors.push(error);
+            }
             None
         } else {
             for error in duplicates {
