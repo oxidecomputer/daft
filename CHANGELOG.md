@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- The `Diffable` derive macro now produces code + errors when the only errors are duplicate struct and field attribute errors.
+
 ## [0.1.2] - 2025-03-10
 
 ### Fixed
