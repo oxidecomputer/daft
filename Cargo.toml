@@ -22,7 +22,7 @@ datatest-stable = "0.3.2"
 daft = { path = "daft" }
 # Use a fixed version number for daft-derive, so daft and daft-derive are always
 # in sync -- the two are released in lockstep.
-daft-derive = { version = "=0.1.2", path = "daft-derive" }
+daft-derive = { version = "=0.1.3", path = "daft-derive" }
 expectorate = "1.1.0"
 newtype-uuid = "1.2.1"
 oxnet = "0.1.0"

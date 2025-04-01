@@ -1,10 +1,12 @@
 # Changelog
 
-## Unreleased
+## [0.1.3] - 2025-04-01
 
 ### Fixed
 
-- The `Diffable` derive macro now produces code + errors when the only errors are duplicate struct and field attribute errors.
+The `Diffable` derive macro now produces both code and errors when the only errors are duplicate struct and field attribute errors.
+
+Thanks to [schneems](https://github.com/schneems) for your first contribution; be sure to read [his blog post](https://www.schneems.com/2025/03/26/a-daft-procmacro-trick-how-to-emit-partialcode-errors/) about Daft's error handling!
 
 ## [0.1.2] - 2025-03-10
 
