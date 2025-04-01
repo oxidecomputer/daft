@@ -97,13 +97,13 @@ fn make_leaf(
                         return Ok(());
                     }
 
-                    errors.push(meta.error(format!(
+                    errors.push_critical(meta.error(format!(
                         "this is unnecessary: the Diffable \
                          implementation {} is always a leaf",
                         position.as_purpose_str(),
                     )));
                 } else {
-                    errors.push(meta.error(format!(
+                    errors.push_critical(meta.error(format!(
                         "daft attributes are not allowed {}",
                         position.as_locative_str(),
                     )));
@@ -112,7 +112,7 @@ fn make_leaf(
                 Ok(())
             });
             if let Err(err) = res {
-                errors.push(err);
+                errors.push_critical(err);
             }
         }
     }
@@ -154,7 +154,7 @@ struct BanDaftAttrsVisitor<'a> {
 impl Visit<'_> for BanDaftAttrsVisitor<'_> {
     fn visit_attribute(&mut self, attr: &Attribute) {
         if attr.path().is_ident("daft") {
-            self.errors.push(syn::Error::new_spanned(
+            self.errors.push_critical(syn::Error::new_spanned(
                 attr,
                 format!(
                     "daft attributes are not allowed {}",
@@ -528,7 +528,7 @@ impl DiffFields {
                 predicates: Default::default(),
             });
 
-        if errors.has_errors() {
+        if errors.has_critical_errors() {
             None
         } else {
             Some(Self { fields, field_configs, where_clause })
@@ -669,13 +669,13 @@ impl StructConfig {
                                     mode = StructMode::Leaf;
                                 }
                                 StructMode::Leaf => {
-                                    errors.push(meta.error(
+                                    errors.push_warning(meta.error(
                                     "#[daft(leaf)] specified multiple times",
                                 ));
                                 }
                             }
                         } else {
-                            errors.push(meta.error(
+                            errors.push_critical(meta.error(
                                 "unknown attribute \
                                  (supported attributes: leaf)",
                             ));
@@ -685,13 +685,13 @@ impl StructConfig {
                     });
 
                     if let Err(err) = res {
-                        errors.push(err);
+                        errors.push_critical(err);
                     }
                 }
             }
         }
 
-        if errors.has_errors() {
+        if errors.has_critical_errors() {
             None
         } else {
             Some(Self { mode })
@@ -729,12 +729,12 @@ impl FieldConfig {
                                 mode = FieldMode::Leaf;
                             }
                             FieldMode::Leaf => {
-                                errors.push(meta.error(
+                                errors.push_warning(meta.error(
                                     "#[daft(leaf)] specified multiple times",
                                 ));
                             }
                             _ => {
-                                errors.push(meta.error(
+                                errors.push_critical(meta.error(
                                     "#[daft(leaf)] conflicts with \
                                      other attributes",
                                 ));
@@ -747,19 +747,19 @@ impl FieldConfig {
                                 mode = FieldMode::Ignore;
                             }
                             FieldMode::Ignore => {
-                                errors.push(meta.error(
+                                errors.push_warning(meta.error(
                                     "#[daft(ignore)] specified multiple times",
                                 ));
                             }
                             _ => {
-                                errors.push(meta.error(
+                                errors.push_critical(meta.error(
                                     "#[daft(ignore)] conflicts with \
                                      other attributes",
                                 ));
                             }
                         }
                     } else {
-                        errors.push(meta.error(
+                        errors.push_critical(meta.error(
                             "unknown attribute \
                              (supported attributes: leaf, ignore)",
                         ));
@@ -769,12 +769,12 @@ impl FieldConfig {
                 });
                 // We don't return an error from our callback, but syn might.
                 if let Err(err) = res {
-                    errors.push(err);
+                    errors.push_critical(err);
                 }
             }
         }
 
-        if errors.has_errors() {
+        if errors.has_critical_errors() {
             None
         } else {
             Some(Self { mode })

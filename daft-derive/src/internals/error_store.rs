@@ -66,17 +66,23 @@ pub(crate) struct ErrorSink<'a, T> {
 }
 
 impl<'a, T> ErrorSink<'a, T> {
-    pub(crate) fn push(&self, error: T) {
+    pub(crate) fn push_critical(&self, error: T) {
         // This is always okay because we only briefly borrow the RefCell at any
         // time.
-        self.data.borrow_mut().push(self.id, error);
+        self.data.borrow_mut().push_critical(self.id, error);
     }
 
-    pub(crate) fn has_errors(&self) -> bool {
-        // ErrorStore::push_error propagates has_errors up the tree while
+    pub(crate) fn push_warning(&self, error: T) {
+        // This is always okay because we only briefly borrow the RefCell at any
+        // time.
+        self.data.borrow_mut().push_warning(error);
+    }
+
+    pub(crate) fn has_critical_errors(&self) -> bool {
+        // ErrorStore::push_critical_error propagates `has_critical_errors` up the tree while
         // writing errors, so we can just check the current ID while reading
         // this information.
-        self.data.borrow().sinks[self.id].has_errors
+        self.data.borrow().sinks[self.id].has_critical_errors
     }
 
     pub(crate) fn new_child(&self) -> ErrorSink<'a, T> {
@@ -99,16 +105,22 @@ impl<T> Default for ErrorStoreData<T> {
 }
 
 impl<T> ErrorStoreData<T> {
-    fn push(&mut self, id: usize, error: T) {
+    /// Critical errors block progress
+    fn push_critical(&mut self, id: usize, error: T) {
         self.errors.push(error);
-        self.sinks[id].has_errors = true;
+        self.sinks[id].has_critical_errors = true;
 
         // Propagate the fact that errors were encountered up the tree.
         let mut curr = id;
         while let Some(parent) = self.sinks[curr].parent {
-            self.sinks[parent].has_errors = true;
+            self.sinks[parent].has_critical_errors = true;
             curr = parent;
         }
+    }
+
+    /// Warning errors do not block progress
+    fn push_warning(&mut self, error: T) {
+        self.errors.push(error);
     }
 
     fn register_sink(&mut self, parent: Option<usize>) -> usize {
@@ -124,11 +136,11 @@ struct ErrorSinkData {
     // The parent ID in the map.
     parent: Option<usize>,
     // Whether an error was pushed via this specific context or a descendant.
-    has_errors: bool,
+    has_critical_errors: bool,
 }
 
 impl ErrorSinkData {
     fn new(parent: Option<usize>) -> Self {
-        Self { parent, has_errors: false }
+        Self { parent, has_critical_errors: false }
     }
 }
