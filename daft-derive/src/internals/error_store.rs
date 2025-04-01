@@ -72,6 +72,12 @@ impl<'a, T> ErrorSink<'a, T> {
         self.data.borrow_mut().push_critical(self.id, error);
     }
 
+    pub(crate) fn push_warning(&self, error: T) {
+        // This is always okay because we only briefly borrow the RefCell at any
+        // time.
+        self.data.borrow_mut().push_warning(error);
+    }
+
     pub(crate) fn has_critical_errors(&self) -> bool {
         // ErrorStore::push_critical_error propagates `has_critical_errors` up the tree while
         // writing errors, so we can just check the current ID while reading
@@ -110,6 +116,11 @@ impl<T> ErrorStoreData<T> {
             self.sinks[parent].has_critical_errors = true;
             curr = parent;
         }
+    }
+
+    /// Warning errors do not block progress
+    fn push_warning(&mut self, error: T) {
+        self.errors.push(error);
     }
 
     fn register_sink(&mut self, parent: Option<usize>) -> usize {
