@@ -1,0 +1,11 @@
+error: unknown attribute (supported attributes: leaf)
+ --> tests/fixtures/invalid/struct-unknown-attribute-multiple.rs:4:8
+  |
+4 | #[daft(ignore, leaf, leaf)]
+  |        ^^^^^^
+
+error: #[daft(leaf)] specified multiple times
+ --> tests/fixtures/invalid/struct-unknown-attribute-multiple.rs:4:22
+  |
+4 | #[daft(ignore, leaf, leaf)]
+  |                      ^^^^

@@ -669,7 +669,7 @@ impl StructConfig {
                                     mode = StructMode::Leaf;
                                 }
                                 StructMode::Leaf => {
-                                    errors.push_critical(meta.error(
+                                    errors.push_warning(meta.error(
                                     "#[daft(leaf)] specified multiple times",
                                 ));
                                 }
