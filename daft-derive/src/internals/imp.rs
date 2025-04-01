@@ -729,7 +729,7 @@ impl FieldConfig {
                                 mode = FieldMode::Leaf;
                             }
                             FieldMode::Leaf => {
-                                errors.push_critical(meta.error(
+                                errors.push_warning(meta.error(
                                     "#[daft(leaf)] specified multiple times",
                                 ));
                             }
@@ -747,7 +747,7 @@ impl FieldConfig {
                                 mode = FieldMode::Ignore;
                             }
                             FieldMode::Ignore => {
-                                errors.push_critical(meta.error(
+                                errors.push_warning(meta.error(
                                     "#[daft(ignore)] specified multiple times",
                                 ));
                             }
