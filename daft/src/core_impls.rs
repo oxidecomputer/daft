@@ -5,9 +5,13 @@ use core::{
     cell::RefCell,
     marker::PhantomData,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
+    num::{
+        NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8,
+        NonZeroU128, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8,
+    },
 };
 
-leaf! { i64, i32, i16, i8, u64, u32, u16, u8, char, bool, isize, usize, () }
+leaf! { i64, i32, i16, i8, u64, u32, u16, u8, char, bool, isize, usize, NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, () }
 leaf! { IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6 }
 leaf! { str }
 
