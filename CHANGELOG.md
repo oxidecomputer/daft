@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.4] - 2025-06-29
+
+### Added
+
+- Implement `Diffable` for `NonZero` types. Thanks [itsjunetime](https://github.com/itsjunetime) for your first contribution!
+
 ## [0.1.3] - 2025-04-01
 
 ### Fixed
@@ -32,6 +38,7 @@ Initial release with support for:
 - The `Diffable` derive macro
 - Implementations for `oxnet`, `uuid`, and `newtype-uuid`
 
+[0.1.4]: https://github.com/oxidecomputer/daft/releases/daft-0.1.4
 [0.1.3]: https://github.com/oxidecomputer/daft/releases/daft-0.1.3
 [0.1.2]: https://github.com/oxidecomputer/daft/releases/daft-0.1.2
 [0.1.1]: https://github.com/oxidecomputer/daft/releases/daft-0.1.1
