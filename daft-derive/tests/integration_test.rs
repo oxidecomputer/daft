@@ -57,7 +57,7 @@ fn test_basic() {
     let a = Large { a: 0, b: SomeEnum::C(4), c: c1, d: SomeStruct { a: 0 } };
     let b = Large { a: 0, b: SomeEnum::B, c: c2, d: SomeStruct { a: 1 } };
     let diff = a.diff(&b);
-    println!("{:#?}", diff);
+    println!("{diff:#?}");
 
     assert_eq!(diff.a.before, diff.a.after);
     assert_eq!(diff.b.before, &SomeEnum::C(4));
@@ -80,7 +80,7 @@ fn test_basic() {
     let diff = a.diff(&b);
     assert_eq!(diff.0.before, &"oxide".to_string());
     assert_eq!(diff.0.after, &"computer company".to_string());
-    println!("{:#?}", diff);
+    println!("{diff:#?}");
 }
 
 #[test]
