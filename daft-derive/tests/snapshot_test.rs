@@ -64,7 +64,7 @@ fn run_derive_macro(
     // Turn each item into a `syn::DeriveInput` and run the derive macro on it.
     items.enumerate().map(|(i, item)| {
         let data = syn::parse2::<DeriveInput>(item).unwrap_or_else(|err| {
-            panic!("failed to parse item {}: {}", i, err);
+            panic!("failed to parse item {i}: {err}");
         });
         internals::derive_diffable(data)
     })
