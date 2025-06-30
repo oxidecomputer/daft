@@ -29,7 +29,9 @@ jobs:
       - name: Run rustdoc
         run: just rustdoc
       - name: Install nightly toolchain for cargo-sync-rdme
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2025-06-21
       - name: Regenerate readmes
         run: just generate-readmes
       - name: Check for differences
