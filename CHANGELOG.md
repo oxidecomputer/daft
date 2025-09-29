@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.5] - 2025-09-29
+
+### Fixed
+
+Replaced obsolete `doc_auto_cfg` with `doc_cfg`, to fix Rust nightly builds with the `doc_cfg` flag enabled.
+
 ## [0.1.4] - 2025-06-29
 
 ### Added
@@ -38,6 +44,7 @@ Initial release with support for:
 - The `Diffable` derive macro
 - Implementations for `oxnet`, `uuid`, and `newtype-uuid`
 
+[0.1.5]: https://github.com/oxidecomputer/daft/releases/daft-0.1.5
 [0.1.4]: https://github.com/oxidecomputer/daft/releases/daft-0.1.4
 [0.1.3]: https://github.com/oxidecomputer/daft/releases/daft-0.1.3
 [0.1.2]: https://github.com/oxidecomputer/daft/releases/daft-0.1.2
