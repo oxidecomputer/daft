@@ -30,6 +30,8 @@ paste = "1.0.15"
 prettyplease = "0.2.29"
 proc-macro2 = "1.0"
 quote = "1.0"
+serde = { version = "1.0.219", default-features = false }
+serde_json = "1.0.140"
 syn = "2.0"
 trybuild = "1.0.103"
 uuid = "1.12.0"

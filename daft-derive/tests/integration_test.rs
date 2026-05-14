@@ -273,3 +273,129 @@ fn diff_pair_lifetimes() {
     assert_eq!(owned.before, "hello");
     assert_eq!(owned.after, "world");
 }
+
+#[cfg(feature = "serde")]
+mod changes_serde {
+    //! End-to-end coverage of `#[daft(changes)]` plus the `serde` feature:
+    //! the projected diff must round-trip through `serde_json` with every
+    //! unchanged leaf omitted.
+
+    use daft::{Diffable, IntoChanges};
+    use serde_json::json;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn struct_with_changes_serializes_only_modified_fields() {
+        #[derive(Debug, Eq, PartialEq, Diffable)]
+        #[daft(changes)]
+        struct Config {
+            name: String,
+            retries: u32,
+        }
+
+        let before =
+            Config { name: "alpha".to_owned(), retries: 3 };
+        let after =
+            Config { name: "alpha".to_owned(), retries: 5 };
+
+        let changes =
+            before.diff(&after).into_changes().expect("retries changed");
+        let json = serde_json::to_value(&changes).unwrap();
+        assert_eq!(json, json!({ "retries": { "before": 3, "after": 5 } }));
+
+        // Two equal values produce no changes at all.
+        assert!(before.diff(&before).into_changes().is_none());
+    }
+
+    #[test]
+    fn nested_struct_changes_serialize_recursively() {
+        #[derive(Debug, Eq, PartialEq, Diffable)]
+        #[daft(changes)]
+        struct Inner {
+            value: u32,
+            note: String,
+        }
+
+        #[derive(Debug, Eq, PartialEq, Diffable)]
+        #[daft(changes)]
+        struct Outer {
+            inner: Inner,
+            tag: u32,
+        }
+
+        let before = Outer {
+            inner: Inner { value: 1, note: "a".to_owned() },
+            tag: 7,
+        };
+        let after = Outer {
+            inner: Inner { value: 2, note: "a".to_owned() },
+            tag: 7,
+        };
+
+        let changes =
+            before.diff(&after).into_changes().expect("inner.value changed");
+        let json = serde_json::to_value(&changes).unwrap();
+
+        // `note` is unchanged so it's dropped; `tag` is unchanged so it's
+        // dropped; only `inner.value` survives.
+        assert_eq!(
+            json,
+            json!({ "inner": { "value": { "before": 1, "after": 2 } } }),
+        );
+    }
+
+    #[test]
+    fn map_changes_filter_unchanged_entries() {
+        #[derive(Debug, Eq, PartialEq, Diffable)]
+        #[daft(changes)]
+        struct Cache {
+            entries: BTreeMap<u32, &'static str>,
+        }
+
+        let before = Cache {
+            entries: [(1, "alpha"), (2, "beta"), (3, "gamma")]
+                .into_iter()
+                .collect(),
+        };
+        let after = Cache {
+            entries: [(1, "alpha"), (2, "BETA"), (4, "delta")]
+                .into_iter()
+                .collect(),
+        };
+
+        let changes =
+            before.diff(&after).into_changes().expect("map changed");
+        let json = serde_json::to_value(&changes).unwrap();
+
+        assert_eq!(
+            json,
+            json!({
+                "entries": {
+                    "common": {
+                        "2": { "before": "beta", "after": "BETA" },
+                    },
+                    "added": { "4": "delta" },
+                    "removed": { "3": "gamma" },
+                },
+            }),
+        );
+    }
+
+    #[test]
+    fn tuple_struct_changes_serialize_positionally() {
+        #[derive(Debug, Eq, PartialEq, Diffable)]
+        #[daft(changes)]
+        struct Pair(u32, &'static str);
+
+        let before = Pair(1, "same");
+        let after = Pair(2, "same");
+
+        let changes =
+            before.diff(&after).into_changes().expect("first changed");
+        // Tuple structs serialize as a sequence with `null` for skipped
+        // positions in formats that preserve nulls; we rely on
+        // `serialize_tuple_struct` to elide positions entirely.
+        let json = serde_json::to_value(&changes).unwrap();
+        assert_eq!(json, json!([{ "before": 1, "after": 2 }]));
+    }
+}

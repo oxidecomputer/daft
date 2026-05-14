@@ -1,0 +1,31 @@
+{
+  "version": {
+    "before": 1,
+    "after": 2
+  },
+  "profile": {
+    "weight": {
+      "before": 70,
+      "after": 71
+    }
+  },
+  "attrs": {
+    "common": {
+      "b": {
+        "before": 2,
+        "after": 20
+      }
+    },
+    "added": {
+      "c": 3
+    }
+  },
+  "tags": {
+    "added": [
+      "z"
+    ],
+    "removed": [
+      "y"
+    ]
+  }
+}

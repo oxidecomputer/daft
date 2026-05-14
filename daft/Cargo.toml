@@ -19,17 +19,28 @@ indexmap = { workspace = true, optional = true }
 newtype-uuid = { workspace = true, optional = true }
 oxnet = { workspace = true, optional = true }
 paste.workspace = true
+serde = { workspace = true, optional = true, features = ["alloc", "derive"] }
 uuid = { workspace = true, optional = true, features = ["v4"] }
+
+[dev-dependencies]
+serde_json.workspace = true
 
 [features]
 default = ["std"]
-std = ["alloc"]
+# Enabling `std` flips on `serde`'s `std` feature too when serde is in use,
+# so the `*Changes` types for `HashMap`/`HashSet` get the right Serialize
+# impls. The `?` form is a no-op when `serde` is disabled.
+std = ["alloc", "serde?/std"]
 alloc = []
 derive = ["dep:daft-derive"]
 newtype-uuid1 = ["dep:newtype-uuid"]
 oxnet01 = ["dep:oxnet"]
 uuid1 = ["dep:uuid"]
 indexmap = ["dep:indexmap", "alloc"]
+# `serde` adds `Serialize` impls to `Leaf` and to the `*Changes` types so
+# that a diff projected via `IntoChanges` can be emitted to JSON or any
+# other serde format with unchanged subtrees omitted entirely.
+serde = ["dep:serde", "daft-derive?/serde", "indexmap?/serde"]
 
 [package.metadata.docs.rs]
 all-features = true

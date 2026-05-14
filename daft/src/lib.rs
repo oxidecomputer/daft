@@ -428,6 +428,52 @@
 //! # }
 //! ```
 //!
+//! ## Serializing only the changed parts
+//!
+//! Daft's diff types preserve the full *before*/*after* structure, which is
+//! the right shape for in-memory analysis but a poor fit for writing diffs
+//! to a file: a diff of two large structures with one altered field still
+//! serializes both sides in full.
+//!
+//! The [`IntoChanges`] trait and the parallel `*Changes` type per diff
+//! handle this. Calling [`into_changes`][IntoChanges::into_changes] drops
+//! every unchanged subtree and returns [`None`] if nothing changed at all.
+//! Built-in implementations cover [`Leaf`], the map and set diffs, and
+//! tuples; the [`Diffable`][macro@Diffable] derive macro emits the
+//! corresponding `*Changes` type and impl when a struct is annotated with
+//! `#[daft(changes)]`.
+//!
+//! The `serde` feature layers on top: it derives [`Serialize`] for [`Leaf`]
+//! and every `*Changes` type. The derive's emitted `Serialize` impl on the
+//! generated `*Changes` skips `None` fields, so the serialized output
+//! contains *only* the modified subtree.
+//!
+//! [`Serialize`]: https://docs.rs/serde/latest/serde/trait.Serialize.html
+//!
+//! ### Example
+//!
+//! ```
+//! # #[cfg(all(feature = "derive", feature = "std"))] {
+//! use daft::{Diffable, IntoChanges};
+//!
+//! #[derive(Diffable)]
+//! #[daft(changes)]
+//! struct Config {
+//!     name: String,
+//!     retries: u32,
+//! }
+//!
+//! let before = Config { name: "alpha".to_owned(), retries: 3 };
+//! let after = Config { name: "alpha".to_owned(), retries: 5 };
+//!
+//! let changes = before.diff(&after).into_changes().expect("retries changed");
+//!
+//! // `name` is unchanged, so it's `None`; `retries` is `Some(...)`.
+//! assert!(changes.name.is_none());
+//! assert!(changes.retries.is_some());
+//! # }
+//! ```
+//!
 //! # Optional features
 //!
 //! * `derive`: Enable the `Diffable` derive macro: **disabled** by default.
@@ -438,6 +484,12 @@
 //! * `std`: Enable diffing for types from the [`std`] crate.
 //!
 //! (With `default-features = false`, daft is no-std compatible.)
+//!
+//! Serialization, **disabled** by default:
+//!
+//! * `serde`: Add `Serialize` impls to [`Leaf`] and to every `*Changes`
+//!   type so a projected diff can be written to JSON or any other serde
+//!   format.
 //!
 //! Implementations for third-party types, all **disabled** by default:
 //!
@@ -493,11 +545,18 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+// Re-export of `serde` for the derive macro, so downstream crates can pick up
+// serde transitively through `daft` instead of having to add it directly.
+#[cfg(feature = "serde")]
+#[doc(hidden)]
+pub use serde as __private_serde;
+
 #[macro_use]
 mod macros;
 
 #[cfg(feature = "alloc")]
 mod alloc_impls;
+mod changes;
 mod core_impls;
 mod diffable;
 mod leaf;
@@ -507,6 +566,7 @@ mod third_party;
 
 #[cfg(feature = "alloc")]
 pub use alloc_impls::*;
+pub use changes::*;
 /// Derive macro for the [`Diffable`] trait.
 ///
 /// The behavior of this macro varies by type:

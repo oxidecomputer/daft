@@ -21,11 +21,19 @@ proc-macro2.workspace = true
 quote.workspace = true
 syn = { workspace = true, features = ["full", "visit"] }
 
+[features]
+# Mirror of daft's `serde` feature: emits the hand-written `Serialize` impl
+# on `*Changes` structs alongside the `IntoChanges` impl. Enabled
+# transitively when a downstream crate turns on `daft/serde`.
+serde = []
+
 [dev-dependencies]
-daft = { workspace = true, features = ["derive"] }
+daft = { workspace = true, features = ["derive", "serde"] }
 datatest-stable.workspace = true
 expectorate.workspace = true
 prettyplease.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 trybuild.workspace = true
 uuid = { workspace = true, features = ["v4"] }
 
