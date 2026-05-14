@@ -1,6 +1,6 @@
 [package]
 name = "daft-derive"
-version = "0.1.5"
+version = "0.1.6"
 description = "Derive macro for daft"
 readme = "README.md"
 categories = ["development-tools"]

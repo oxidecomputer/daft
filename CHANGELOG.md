@@ -3,6 +3,12 @@
 <!-- next-header -->
 ## Unreleased - ReleaseDate
 
+## [0.1.6] - 2026-05-14
+
+### Added
+
+Support for indexmap under the optional `indexmap` feature. Thanks [scoopr](https://github.com/scoopr) for your first contribution!
+
 ### Fixed
 
 - The `Diffable` derive macro now works properly if there are no struct fields to compare (either empty structs or all fields marked `#[daft(ignore)]`.)
@@ -52,6 +58,7 @@ Initial release with support for:
 - Implementations for `oxnet`, `uuid`, and `newtype-uuid`
 
 <!-- next-url -->
+[0.1.6]: https://github.com/oxidecomputer/daft/releases/tag/daft-0.1.6
 [0.1.5]: https://github.com/oxidecomputer/daft/releases/tag/daft-0.1.5
 [0.1.4]: https://github.com/oxidecomputer/daft/releases/tag/daft-0.1.4
 [0.1.3]: https://github.com/oxidecomputer/daft/releases/tag/daft-0.1.3
