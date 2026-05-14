@@ -408,6 +408,48 @@ struct BorrowedDataDiff<'daft, 'a: 'daft, 'b: 'daft, T: ?Sized + 'daft> {
 }
 ````
 
+### Serializing only the changed parts
+
+Daft’s diff types preserve the full *before*/*after* structure, which is
+the right shape for in-memory analysis but a poor fit for writing diffs
+to a file: a diff of two large structures with one altered field still
+serializes both sides in full.
+
+The [`IntoChanges`](https://docs.rs/daft/0.1.6/daft/changes/trait.IntoChanges.html) trait and the parallel `*Changes` type per diff
+handle this. Calling [`into_changes`](https://docs.rs/daft/0.1.6/daft/changes/IntoChanges/fn.into_changes.html) drops
+every unchanged subtree and returns \[`None`\] if nothing changed at all.
+Built-in implementations cover [`Leaf`](https://docs.rs/daft/0.1.6/daft/leaf/struct.Leaf.html), the map and set diffs, and
+tuples; the [`Diffable`](https://docs.rs/daft-derive/0.1.6/daft_derive/derive.Diffable.html) derive macro emits the
+corresponding `*Changes` type and impl when a struct is annotated with
+`#[daft(changes)]`.
+
+The `serde` feature layers on top: it derives [`Serialize`] for [`Leaf`](https://docs.rs/daft/0.1.6/daft/leaf/struct.Leaf.html)
+and every `*Changes` type. The derive’s emitted `Serialize` impl on the
+generated `*Changes` skips `None` fields, so the serialized output
+contains *only* the modified subtree.
+
+#### Example
+
+````rust
+use daft::{Diffable, IntoChanges};
+
+#[derive(Diffable)]
+#[daft(changes)]
+struct Config {
+    name: String,
+    retries: u32,
+}
+
+let before = Config { name: "alpha".to_owned(), retries: 3 };
+let after = Config { name: "alpha".to_owned(), retries: 5 };
+
+let changes = before.diff(&after).into_changes().expect("retries changed");
+
+// `name` is unchanged, so it's `None`; `retries` is `Some(...)`.
+assert!(changes.name.is_none());
+assert!(changes.retries.is_some());
+````
+
 ## Optional features
 
 * `derive`: Enable the `Diffable` derive macro: **disabled** by default.
@@ -418,6 +460,12 @@ Implementations for standard library types, all **enabled** by default:
 * `std`: Enable diffing for types from the [`std`](https://doc.rust-lang.org/nightly/std/index.html) crate.
 
 (With `default-features = false`, daft is no-std compatible.)
+
+Serialization, **disabled** by default:
+
+* `serde`: Add `Serialize` impls to [`Leaf`](https://docs.rs/daft/0.1.6/daft/leaf/struct.Leaf.html) and to every `*Changes`
+  type so a projected diff can be written to JSON or any other serde
+  format.
 
 Implementations for third-party types, all **disabled** by default:
 
@@ -468,6 +516,7 @@ this crate and a great alternative. Daft diverges from diffus in a few ways:
 [`HashMap`]: https://doc.rust-lang.org/nightly/std/collections/hash/map/struct.HashMap.html
 [`BTreeSet`]: https://doc.rust-lang.org/nightly/alloc/collections/btree/set/struct.BTreeSet.html
 [`HashSet`]: https://doc.rust-lang.org/nightly/std/collections/hash/set/struct.HashSet.html
+[`Serialize`]: https://docs.rs/serde/latest/serde/trait.Serialize.html
 [GAT]: https://blog.rust-lang.org/2021/08/03/GATs-stabilization-push.html
 <!-- cargo-sync-rdme ]] -->
 

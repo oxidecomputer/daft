@@ -35,16 +35,10 @@ fn simple_struct() {
         timeout_ms: u32,
     }
 
-    let before = Config {
-        name: "alpha".to_owned(),
-        retries: 3,
-        timeout_ms: 1000,
-    };
-    let after = Config {
-        name: "alpha".to_owned(),
-        retries: 5,
-        timeout_ms: 1000,
-    };
+    let before =
+        Config { name: "alpha".to_owned(), retries: 3, timeout_ms: 1000 };
+    let after =
+        Config { name: "alpha".to_owned(), retries: 5, timeout_ms: 1000 };
 
     let changes = before.diff(&after).into_changes().expect("retries changed");
     assert_json_snapshot("simple_struct", &changes);
@@ -66,14 +60,10 @@ fn nested_struct() {
         tag: u32,
     }
 
-    let before = Outer {
-        inner: Inner { value: 1, note: "stable".to_owned() },
-        tag: 7,
-    };
-    let after = Outer {
-        inner: Inner { value: 2, note: "stable".to_owned() },
-        tag: 7,
-    };
+    let before =
+        Outer { inner: Inner { value: 1, note: "stable".to_owned() }, tag: 7 };
+    let after =
+        Outer { inner: Inner { value: 2, note: "stable".to_owned() }, tag: 7 };
 
     let changes =
         before.diff(&after).into_changes().expect("inner.value changed");
@@ -102,8 +92,7 @@ fn map_field() {
         version: 1,
     };
 
-    let changes =
-        before.diff(&after).into_changes().expect("entries changed");
+    let changes = before.diff(&after).into_changes().expect("entries changed");
     assert_json_snapshot("map_field", &changes);
 }
 
@@ -115,15 +104,12 @@ fn set_field() {
         labels: BTreeSet<&'static str>,
     }
 
-    let before = Tags {
-        labels: ["alpha", "beta", "gamma"].into_iter().collect(),
-    };
-    let after = Tags {
-        labels: ["beta", "gamma", "delta"].into_iter().collect(),
-    };
+    let before =
+        Tags { labels: ["alpha", "beta", "gamma"].into_iter().collect() };
+    let after =
+        Tags { labels: ["beta", "gamma", "delta"].into_iter().collect() };
 
-    let changes =
-        before.diff(&after).into_changes().expect("labels changed");
+    let changes = before.diff(&after).into_changes().expect("labels changed");
     assert_json_snapshot("set_field", &changes);
 }
 
@@ -158,14 +144,10 @@ fn leaf_field() {
         label: String,
     }
 
-    let before = Wrapper {
-        inner: Inner { value: 1 },
-        label: "unchanged".to_owned(),
-    };
-    let after = Wrapper {
-        inner: Inner { value: 2 },
-        label: "unchanged".to_owned(),
-    };
+    let before =
+        Wrapper { inner: Inner { value: 1 }, label: "unchanged".to_owned() };
+    let after =
+        Wrapper { inner: Inner { value: 2 }, label: "unchanged".to_owned() };
 
     let changes = before.diff(&after).into_changes().expect("inner changed");
     assert_json_snapshot("leaf_field", &changes);

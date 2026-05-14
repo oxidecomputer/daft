@@ -293,10 +293,8 @@ mod changes_serde {
             retries: u32,
         }
 
-        let before =
-            Config { name: "alpha".to_owned(), retries: 3 };
-        let after =
-            Config { name: "alpha".to_owned(), retries: 5 };
+        let before = Config { name: "alpha".to_owned(), retries: 3 };
+        let after = Config { name: "alpha".to_owned(), retries: 5 };
 
         let changes =
             before.diff(&after).into_changes().expect("retries changed");
@@ -323,14 +321,10 @@ mod changes_serde {
             tag: u32,
         }
 
-        let before = Outer {
-            inner: Inner { value: 1, note: "a".to_owned() },
-            tag: 7,
-        };
-        let after = Outer {
-            inner: Inner { value: 2, note: "a".to_owned() },
-            tag: 7,
-        };
+        let before =
+            Outer { inner: Inner { value: 1, note: "a".to_owned() }, tag: 7 };
+        let after =
+            Outer { inner: Inner { value: 2, note: "a".to_owned() }, tag: 7 };
 
         let changes =
             before.diff(&after).into_changes().expect("inner.value changed");
@@ -363,8 +357,7 @@ mod changes_serde {
                 .collect(),
         };
 
-        let changes =
-            before.diff(&after).into_changes().expect("map changed");
+        let changes = before.diff(&after).into_changes().expect("map changed");
         let json = serde_json::to_value(&changes).unwrap();
 
         assert_eq!(

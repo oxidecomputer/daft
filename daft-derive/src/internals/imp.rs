@@ -435,7 +435,8 @@ fn make_projected_trait_impls(
     };
 
     let debug_impl = {
-        let where_clause = where_clause_for(&parse_quote! { ::core::fmt::Debug });
+        let where_clause =
+            where_clause_for(&parse_quote! { ::core::fmt::Debug });
         let members = fields.members();
         let body = match fields {
             Fields::Named(_) => quote! {
@@ -462,7 +463,8 @@ fn make_projected_trait_impls(
     };
 
     let partial_eq_impl = {
-        let where_clause = where_clause_for(&parse_quote! { ::core::cmp::PartialEq });
+        let where_clause =
+            where_clause_for(&parse_quote! { ::core::cmp::PartialEq });
         let members = fields.members();
         let body: Expr = if fields.is_empty() {
             parse_quote! { true }
@@ -552,8 +554,9 @@ fn make_changes_struct(
     let daft_lt = daft_lifetime();
     let daft_crate = daft_crate();
     let new_generics = add_lifetime_to_generics(input, &daft_lt);
-    let where_clause = diff_fields
-        .where_clause_with_trait_bound(&parse_quote! { #daft_crate::IntoChanges });
+    let where_clause = diff_fields.where_clause_with_trait_bound(
+        &parse_quote! { #daft_crate::IntoChanges },
+    );
 
     let phantom_ty = {
         let ident = &input.ident;
@@ -642,15 +645,15 @@ fn make_into_changes_impl(
     diff_fields: &DiffFields,
 ) -> TokenStream {
     let ident = &input.ident;
-    let diff_name = parse_str::<Path>(&format!("{}Diff", ident)).unwrap();
-    let changes_name =
-        parse_str::<Path>(&format!("{}Changes", ident)).unwrap();
+    let diff_name = parse_str::<Path>(&format!("{ident}Diff")).unwrap();
+    let changes_name = parse_str::<Path>(&format!("{ident}Changes")).unwrap();
     let daft_crate = daft_crate();
     let daft_lt = daft_lifetime();
     let new_generics = add_lifetime_to_generics(input, &daft_lt);
     let (impl_gen, ty_gen, _) = &new_generics.split_for_impl();
-    let where_clause = diff_fields
-        .where_clause_with_trait_bound(&parse_quote! { #daft_crate::IntoChanges });
+    let where_clause = diff_fields.where_clause_with_trait_bound(
+        &parse_quote! { #daft_crate::IntoChanges },
+    );
 
     if diff_fields.fields.is_empty() {
         return quote! {
@@ -734,7 +737,9 @@ fn make_into_changes_impl(
 /// indices valid as idents and avoids colliding with user field names.
 fn binding_ident(f: &Field, index: usize) -> syn::Ident {
     match &f.ident {
-        Some(ident) => syn::Ident::new(&format!("__daft_{ident}"), ident.span()),
+        Some(ident) => {
+            syn::Ident::new(&format!("__daft_{ident}"), ident.span())
+        }
         None => syn::Ident::new(&format!("__daft_{index}"), f.span()),
     }
 }
@@ -983,7 +988,6 @@ impl DiffFields {
     /// Returns an iterator over the *changes*-projected field types — i.e.
     /// `<DiffType as ::daft::IntoChanges>::Changes` for each field. Used by
     /// the Changes-side struct definition and its inherent trait impls.
-    
     fn changes_types(&self) -> impl Iterator<Item = syn::Type> + '_ {
         let daft_crate = daft_crate();
         self.types().map(move |ty| -> syn::Type {
@@ -996,7 +1000,6 @@ impl DiffFields {
     /// Like [`Self::where_clause_with_trait_bound`], but each predicate is
     /// applied to the corresponding changes-projected type rather than the
     /// diff type itself.
-    
     fn changes_where_clause_with_trait_bound(
         &self,
         trait_bound: &syn::TraitBound,
@@ -1012,7 +1015,6 @@ impl DiffFields {
 
         where_clause
     }
-
 }
 
 impl ToTokens for DiffFields {
