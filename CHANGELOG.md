@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- The `Diffable` derive macro now works properly if there are no struct fields to compare (either empty structs or all fields marked `#[daft(ignore)]`.)
+
 ## [0.1.5] - 2025-09-29
 
 ### Fixed

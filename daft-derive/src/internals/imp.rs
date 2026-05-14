@@ -324,21 +324,50 @@ fn make_diff_struct(
 
     // --- No more errors past this point ---
 
-    let struct_def = match &s.fields {
-        Fields::Named(_) => quote! {
-            #non_exhaustive
-            #vis struct #name #new_generics #where_clause #diff_fields
+    // If the diff struct would otherwise be empty, inject a private
+    // `PhantomData` field that uses both `'__daft` and the original generics.
+    // Without it, those parameters would be declared on the diff struct but
+    // unused.
+    //
+    // We use `fn() -> &'__daft Self`, not `&'__daft Self` an empty diff has no
+    // real data, so making it Send/Sync independent of the original type's
+    // auto-traits is the best choice. `fn() -> &'__daft Self` is covariant in
+    // `'__daft` and the original generics, and always `Send + Sync`.
+    let phantom_ty = {
+        let ident = &input.ident;
+        let (_, orig_ty_gen, _) = input.generics.split_for_impl();
+        quote! {
+            ::core::marker::PhantomData<fn() -> &#daft_lt #ident #orig_ty_gen>
+        }
+    };
 
-        },
-        Fields::Unnamed(_) => quote! {
-            #non_exhaustive
-            #vis struct #name #new_generics #diff_fields #where_clause;
-        },
-        Fields::Unit => quote! {
-            // This is kinda silly
-            #non_exhaustive
-            #vis struct #name #new_generics {} #where_clause
-        },
+    let struct_def = if diff_fields.fields.is_empty() {
+        match &s.fields {
+            Fields::Named(_) | Fields::Unit => quote! {
+                #non_exhaustive
+                #vis struct #name #new_generics #where_clause {
+                    _phantom: #phantom_ty,
+                }
+            },
+            Fields::Unnamed(_) => quote! {
+                #non_exhaustive
+                #vis struct #name #new_generics (#phantom_ty) #where_clause;
+            },
+        }
+    } else {
+        match &s.fields {
+            Fields::Named(_) => quote! {
+                #non_exhaustive
+                #vis struct #name #new_generics #where_clause #diff_fields
+            },
+            Fields::Unnamed(_) => quote! {
+                #non_exhaustive
+                #vis struct #name #new_generics #diff_fields #where_clause;
+            },
+            Fields::Unit => unreachable!(
+                "Fields::Unit always produces an empty diff struct"
+            ),
+        }
     };
 
     // Generate PartialEq, Eq, and Debug implementations for the diff struct. We
@@ -395,8 +424,13 @@ fn make_diff_struct(
         );
         let members = diff_fields.fields.members();
 
-        let partial_eq_body: Expr = parse_quote! {
-            #(self.#members == other.#members) && *
+        // Return true if there aren't any fields to compare.
+        let partial_eq_body: Expr = if diff_fields.fields.is_empty() {
+            parse_quote! { true }
+        } else {
+            parse_quote! {
+                #(self.#members == other.#members) && *
+            }
         };
 
         quote! {
@@ -448,6 +482,23 @@ fn make_diff_impl(
     let (impl_gen, ty_gen, _) = &input.generics.split_for_impl();
     let (_, new_ty_gen, where_clause) = &new_generics.split_for_impl();
 
+    let constructor = if diff_fields.fields.is_empty() {
+        match &diff_fields.fields {
+            Fields::Named(_) | Fields::Unit => quote! {
+                Self::Diff { _phantom: ::core::marker::PhantomData }
+            },
+            Fields::Unnamed(_) => quote! {
+                Self::Diff { 0: ::core::marker::PhantomData }
+            },
+        }
+    } else {
+        quote! {
+            Self::Diff {
+                #diffs
+            }
+        }
+    };
+
     quote! {
         impl #impl_gen #daft_crate::Diffable for #ident #ty_gen
             #where_clause
@@ -455,9 +506,7 @@ fn make_diff_impl(
             type Diff<#daft_lt> = #name #new_ty_gen where Self: #daft_lt;
 
             fn diff<#daft_lt>(&#daft_lt self, other: &#daft_lt Self) -> #name #new_ty_gen {
-                Self::Diff {
-                    #diffs
-                }
+                #constructor
             }
         }
     }
