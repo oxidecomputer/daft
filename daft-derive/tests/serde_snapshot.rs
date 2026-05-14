@@ -19,8 +19,9 @@ use std::collections::{BTreeMap, BTreeSet};
 /// Compare `value` serialized as pretty JSON against
 /// `tests/fixtures/serde/{name}.json`.
 fn assert_json_snapshot<T: Serialize>(name: &str, value: &T) {
-    let pretty = serde_json::to_string_pretty(value)
+    let mut pretty = serde_json::to_string_pretty(value)
         .expect("serializing changes to JSON");
+    pretty.push('\n');
     let path = format!("tests/fixtures/serde/{name}.json");
     assert_contents(&path, &pretty);
 }
