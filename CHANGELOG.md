@@ -1,6 +1,7 @@
 # Changelog
 
-## Unreleased
+<!-- next-header -->
+## Unreleased - ReleaseDate
 
 ### Fixed
 
@@ -50,9 +51,10 @@ Initial release with support for:
 - The `Diffable` derive macro
 - Implementations for `oxnet`, `uuid`, and `newtype-uuid`
 
-[0.1.5]: https://github.com/oxidecomputer/daft/releases/daft-0.1.5
-[0.1.4]: https://github.com/oxidecomputer/daft/releases/daft-0.1.4
-[0.1.3]: https://github.com/oxidecomputer/daft/releases/daft-0.1.3
-[0.1.2]: https://github.com/oxidecomputer/daft/releases/daft-0.1.2
-[0.1.1]: https://github.com/oxidecomputer/daft/releases/daft-0.1.1
-[0.1.0]: https://github.com/oxidecomputer/daft/releases/daft-0.1.0
+<!-- next-url -->
+[0.1.5]: https://github.com/oxidecomputer/daft/releases/tag/daft-0.1.5
+[0.1.4]: https://github.com/oxidecomputer/daft/releases/tag/daft-0.1.4
+[0.1.3]: https://github.com/oxidecomputer/daft/releases/tag/daft-0.1.3
+[0.1.2]: https://github.com/oxidecomputer/daft/releases/tag/daft-0.1.2
+[0.1.1]: https://github.com/oxidecomputer/daft/releases/tag/daft-0.1.1
+[0.1.0]: https://github.com/oxidecomputer/daft/releases/tag/daft-0.1.0
