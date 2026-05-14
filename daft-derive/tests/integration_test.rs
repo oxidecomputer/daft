@@ -160,6 +160,82 @@ fn test_struct_with_generics() {
 }
 
 #[test]
+fn test_empty_structs() {
+    // Cover every shape that yields an empty diff: unit, empty named, empty
+    // tuple, and any of the above where every field is `#[daft(ignore)]`.
+    #[derive(Debug, Eq, PartialEq, Diffable)]
+    struct UnitStruct;
+
+    #[derive(Debug, Eq, PartialEq, Diffable)]
+    struct EmptyNamed {}
+
+    #[derive(Debug, Eq, PartialEq, Diffable)]
+    struct EmptyTuple();
+
+    #[derive(Debug, Eq, PartialEq, Diffable)]
+    struct AllIgnoredNamed {
+        #[daft(ignore)]
+        a: i32,
+        #[daft(ignore)]
+        b: String,
+    }
+
+    #[derive(Debug, Eq, PartialEq, Diffable)]
+    struct AllIgnoredTuple(#[daft(ignore)] i32, #[daft(ignore)] String);
+
+    // Two diffs of any empty type should compare equal -- there is nothing to
+    // distinguish them.
+    assert_eq!(UnitStruct.diff(&UnitStruct), UnitStruct.diff(&UnitStruct));
+    assert_eq!(
+        EmptyNamed {}.diff(&EmptyNamed {}),
+        EmptyNamed {}.diff(&EmptyNamed {})
+    );
+    assert_eq!(
+        EmptyTuple().diff(&EmptyTuple()),
+        EmptyTuple().diff(&EmptyTuple())
+    );
+
+    // For all-ignored structs, even values that differ in the ignored fields
+    // must produce equal diffs.
+    let a = AllIgnoredNamed { a: 1, b: "x".into() };
+    let b = AllIgnoredNamed { a: 2, b: "y".into() };
+    assert_eq!(a.diff(&b), a.diff(&a));
+
+    let a = AllIgnoredTuple(1, "x".into());
+    let b = AllIgnoredTuple(2, "y".into());
+    assert_eq!(a.diff(&b), a.diff(&a));
+
+    // Debug output is just the type name with no field listing.
+    assert_eq!(format!("{:?}", UnitStruct.diff(&UnitStruct)), "UnitStructDiff");
+    assert_eq!(
+        format!(
+            "{:?}",
+            AllIgnoredTuple(0, String::new())
+                .diff(&AllIgnoredTuple(0, String::new()))
+        ),
+        "AllIgnoredTupleDiff",
+    );
+
+    // Empty diff structs should be `Send + Sync` regardless of the original
+    // type's auto-traits -- there is no data inside to share.
+    #[derive(Diffable)]
+    struct AllIgnoredNonSync {
+        #[daft(ignore)]
+        _c: std::cell::Cell<u32>,
+    }
+
+    fn assert_send<T: Send>() {}
+    fn assert_sync<T: Sync>() {}
+
+    assert_send::<UnitStructDiff<'_>>();
+    assert_sync::<UnitStructDiff<'_>>();
+    assert_send::<AllIgnoredTupleDiff<'_>>();
+    assert_sync::<AllIgnoredTupleDiff<'_>>();
+    assert_send::<AllIgnoredNonSyncDiff<'_>>();
+    assert_sync::<AllIgnoredNonSyncDiff<'_>>();
+}
+
+#[test]
 fn diff_pair_lifetimes() {
     // Complex type to ensure lifetimes are correct.
     #[derive(Diffable)]
