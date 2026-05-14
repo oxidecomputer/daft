@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## Unreleased - ReleaseDate
 
+### Added
+
+Support for indexmap under the optional `indexmap` feature. Thanks [scoopr](https://github.com/scoopr) for your first contribution!
+
 ### Fixed
 
 - The `Diffable` derive macro now works properly if there are no struct fields to compare (either empty structs or all fields marked `#[daft(ignore)]`.)
