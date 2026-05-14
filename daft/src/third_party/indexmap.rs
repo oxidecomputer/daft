@@ -13,8 +13,8 @@ mod tests {
 
     #[test]
     fn indexmap_set_diff() {
-        let a: indexmap::IndexSet<_> = [0, 1, 2, 3, 4, 5].into_iter().collect();
-        let b: indexmap::IndexSet<_> = [3, 4, 5, 6, 7, 8].into_iter().collect();
+        let a: IndexSet<_> = [0, 1, 2, 3, 4, 5].into_iter().collect();
+        let b: IndexSet<_> = [3, 4, 5, 6, 7, 8].into_iter().collect();
         let changes = a.diff(&b);
         let expected = IndexSetDiff {
             added: [&6, &7, &8].into_iter().collect(),
