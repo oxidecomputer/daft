@@ -270,17 +270,45 @@ fn make_struct_impl(
         StructMode::Default => make_diff_struct(input, s, errors.new_child())
             .map(|(generated_struct, diff_fields)| {
                 let diff_impl = make_diff_impl(input, &diff_fields);
+                let changes_items = if struct_config.changes {
+                    make_changes_items(input, s, &diff_fields)
+                } else {
+                    TokenStream::new()
+                };
                 // Uncomment for some debugging
                 // eprintln!("{generated_struct}");
                 // eprintln!("{diff_impl}");
+                // eprintln!("{changes_items}");
                 quote! {
                     #generated_struct
                     #diff_impl
+                    #changes_items
                 }
             }),
         StructMode::Leaf => {
             Some(make_leaf(input, AttrPosition::LeafStruct, errors.new_child()))
         }
+    }
+}
+
+/// Emit the `*Changes` struct, its inherent impls, the `IntoChanges` impl
+/// on the diff, and — when the `serde` feature is on — a hand-written
+/// `Serialize` impl that skips `None` fields.
+fn make_changes_items(
+    input: &DeriveInput,
+    s: &DataStruct,
+    diff_fields: &DiffFields,
+) -> TokenStream {
+    let changes_struct = make_changes_struct(input, s, diff_fields);
+    let into_changes_impl = make_into_changes_impl(input, s, diff_fields);
+    #[cfg(feature = "serde")]
+    let serialize_impl = make_serialize_impl(input, diff_fields);
+    #[cfg(not(feature = "serde"))]
+    let serialize_impl = TokenStream::new();
+    quote! {
+        #changes_struct
+        #into_changes_impl
+        #serialize_impl
     }
 }
 
@@ -370,96 +398,94 @@ fn make_diff_struct(
         }
     };
 
-    // Generate PartialEq, Eq, and Debug implementations for the diff struct. We
-    // can't rely on `#[derive] because we want to put bounds on the
-    // Diffable::Diff types, not on the original types.
-    let (impl_gen, ty_gen, _) = &new_generics.split_for_impl();
+    // We can't `#[derive]` Debug/PartialEq/Eq here because the rustc-emitted
+    // bounds would apply to the original type parameters; we need bounds on
+    // the projected `<T as Diffable>::Diff<'__daft>` types instead.
+    let trait_impls = make_projected_trait_impls(
+        &name,
+        &new_generics,
+        &diff_fields.fields,
+        non_exhaustive.is_some(),
+        |bound| diff_fields.where_clause_with_trait_bound(bound),
+    );
+
+    Some((quote! { #struct_def #trait_impls }, diff_fields))
+}
+
+/// Emit `Debug`, `PartialEq`, and `Eq` impls for a generated `*Diff` or
+/// `*Changes` struct.
+///
+/// The two callers differ only in how field-type bounds are projected onto
+/// the where clause — the diff impls bound `<T as Diffable>::Diff<'__daft>`
+/// while the changes impls bound `<<T> as IntoChanges>::Changes`. The
+/// `where_clause_for` closure encapsulates that difference; everything else
+/// (debug body shape, partial-eq fold, non-exhaustive finish) is shared.
+fn make_projected_trait_impls(
+    name: &Path,
+    generics: &Generics,
+    fields: &Fields,
+    non_exhaustive: bool,
+    mut where_clause_for: impl FnMut(&syn::TraitBound) -> WhereClause,
+) -> TokenStream {
+    let (impl_gen, ty_gen, _) = generics.split_for_impl();
+    let finish = if non_exhaustive {
+        quote! { .finish_non_exhaustive() }
+    } else {
+        quote! { .finish() }
+    };
 
     let debug_impl = {
-        let where_clause = diff_fields.where_clause_with_trait_bound(
-            &parse_quote! { ::core::fmt::Debug },
-        );
-        let members = diff_fields.fields.members();
-
-        let finish = if non_exhaustive.is_some() {
-            quote! { .finish_non_exhaustive() }
-        } else {
-            quote! { .finish() }
-        };
-
-        let debug_body = match &s.fields {
-            Fields::Named(_) => {
-                quote! {
-                    f.debug_struct(stringify!(#name))
-                    #(
-                        .field(stringify!(#members), &self.#members)
-                    )*
-                    #finish
-                }
-            }
+        let where_clause =
+            where_clause_for(&parse_quote! { ::core::fmt::Debug });
+        let members = fields.members();
+        let body = match fields {
+            Fields::Named(_) => quote! {
+                f.debug_struct(stringify!(#name))
+                #( .field(stringify!(#members), &self.#members) )*
+                #finish
+            },
             Fields::Unnamed(_) => quote! {
                 f.debug_tuple(stringify!(#name))
-                #(
-                    .field(&self.#members)
-                )*
+                #( .field(&self.#members) )*
                 #finish
             },
             Fields::Unit => quote! {
-                f.debug_struct(stringify!(#name))
-                    #finish
+                f.debug_struct(stringify!(#name)) #finish
             },
         };
         quote! {
             impl #impl_gen ::core::fmt::Debug for #name #ty_gen #where_clause {
                 fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-                    #debug_body
+                    #body
                 }
             }
         }
     };
 
     let partial_eq_impl = {
-        let where_clause = diff_fields.where_clause_with_trait_bound(
-            &parse_quote! { ::core::cmp::PartialEq },
-        );
-        let members = diff_fields.fields.members();
-
-        // Return true if there aren't any fields to compare.
-        let partial_eq_body: Expr = if diff_fields.fields.is_empty() {
+        let where_clause =
+            where_clause_for(&parse_quote! { ::core::cmp::PartialEq });
+        let members = fields.members();
+        let body: Expr = if fields.is_empty() {
             parse_quote! { true }
         } else {
-            parse_quote! {
-                #(self.#members == other.#members) && *
-            }
+            parse_quote! { #(self.#members == other.#members) && * }
         };
-
         quote! {
             impl #impl_gen ::core::cmp::PartialEq for #name #ty_gen #where_clause {
-                fn eq(&self, other: &Self) -> bool {
-                    #partial_eq_body
-                }
+                fn eq(&self, other: &Self) -> bool { #body }
             }
         }
     };
 
     let eq_impl = {
-        let where_clause = diff_fields
-            .where_clause_with_trait_bound(&parse_quote! { ::core::cmp::Eq });
-
+        let where_clause = where_clause_for(&parse_quote! { ::core::cmp::Eq });
         quote! {
             impl #impl_gen ::core::cmp::Eq for #name #ty_gen #where_clause {}
         }
     };
 
-    Some((
-        quote! {
-            #struct_def
-            #debug_impl
-            #partial_eq_impl
-            #eq_impl
-        },
-        diff_fields,
-    ))
+    quote! { #debug_impl #partial_eq_impl #eq_impl }
 }
 
 /// Impl `Diffable` for the original struct
@@ -507,6 +533,312 @@ fn make_diff_impl(
 
             fn diff<#daft_lt>(&#daft_lt self, other: &#daft_lt Self) -> #name #new_ty_gen {
                 #constructor
+            }
+        }
+    }
+}
+
+/// Emit the `*Changes` struct definition and its `Debug`/`PartialEq`/`Eq`
+/// impls. Each field is wrapped in `Option<...>` so unchanged subtrees can
+/// be represented as `None`.
+fn make_changes_struct(
+    input: &DeriveInput,
+    s: &DataStruct,
+    diff_fields: &DiffFields,
+) -> TokenStream {
+    let vis = &input.vis;
+    let name = parse_str::<Path>(&format!("{}Changes", input.ident)).unwrap();
+    let non_exhaustive =
+        input.attrs.iter().find(|attr| attr.path().is_ident("non_exhaustive"));
+
+    let daft_lt = daft_lifetime();
+    let daft_crate = daft_crate();
+    let new_generics = add_lifetime_to_generics(input, &daft_lt);
+    let where_clause = diff_fields.where_clause_with_trait_bound(
+        &parse_quote! { #daft_crate::IntoChanges },
+    );
+
+    let phantom_ty = {
+        let ident = &input.ident;
+        let (_, orig_ty_gen, _) = input.generics.split_for_impl();
+        quote! {
+            ::core::marker::PhantomData<fn() -> &#daft_lt #ident #orig_ty_gen>
+        }
+    };
+
+    let changes_field_ty = |ty: &syn::Type| -> TokenStream {
+        quote_spanned! {ty.span()=>
+            ::core::option::Option<<#ty as #daft_crate::IntoChanges>::Changes>
+        }
+    };
+
+    // The struct *shape* (named/unnamed/unit) comes from `s.fields`, but
+    // field types come from `diff_fields.fields` since those carry the
+    // projected `<T as Diffable>::Diff<'__daft>` form.
+    let struct_def = if diff_fields.fields.is_empty() {
+        match &s.fields {
+            Fields::Named(_) | Fields::Unit => quote! {
+                #non_exhaustive
+                #vis struct #name #new_generics #where_clause {
+                    _phantom: #phantom_ty,
+                }
+            },
+            Fields::Unnamed(_) => quote! {
+                #non_exhaustive
+                #vis struct #name #new_generics (#phantom_ty) #where_clause;
+            },
+        }
+    } else {
+        match &diff_fields.fields {
+            Fields::Named(fields) => {
+                let entries = fields.named.iter().map(|f| {
+                    let field_vis = &f.vis;
+                    let field_name = f.ident.as_ref().unwrap();
+                    let ty = changes_field_ty(&f.ty);
+                    quote_spanned! {f.span()=>
+                        #field_vis #field_name: #ty,
+                    }
+                });
+                quote! {
+                    #non_exhaustive
+                    #vis struct #name #new_generics #where_clause {
+                        #(#entries)*
+                    }
+                }
+            }
+            Fields::Unnamed(fields) => {
+                let entries = fields.unnamed.iter().map(|f| {
+                    let field_vis = &f.vis;
+                    let ty = changes_field_ty(&f.ty);
+                    quote_spanned! {f.span()=>
+                        #field_vis #ty
+                    }
+                });
+                quote! {
+                    #non_exhaustive
+                    #vis struct #name #new_generics (#(#entries),*) #where_clause;
+                }
+            }
+            Fields::Unit => unreachable!(
+                "Fields::Unit always produces an empty changes struct"
+            ),
+        }
+    };
+
+    let trait_impls = make_projected_trait_impls(
+        &name,
+        &new_generics,
+        &diff_fields.fields,
+        non_exhaustive.is_some(),
+        |bound| diff_fields.changes_where_clause_with_trait_bound(bound),
+    );
+
+    quote! { #struct_def #trait_impls }
+}
+
+/// Implement `IntoChanges` on the generated `*Diff` struct. Projects every
+/// field to its changes-only representation and returns `None` if every
+/// projection was itself `None` (no leaf changed).
+fn make_into_changes_impl(
+    input: &DeriveInput,
+    s: &DataStruct,
+    diff_fields: &DiffFields,
+) -> TokenStream {
+    let ident = &input.ident;
+    let diff_name = parse_str::<Path>(&format!("{ident}Diff")).unwrap();
+    let changes_name = parse_str::<Path>(&format!("{ident}Changes")).unwrap();
+    let daft_crate = daft_crate();
+    let daft_lt = daft_lifetime();
+    let new_generics = add_lifetime_to_generics(input, &daft_lt);
+    let (impl_gen, ty_gen, _) = &new_generics.split_for_impl();
+    let where_clause = diff_fields.where_clause_with_trait_bound(
+        &parse_quote! { #daft_crate::IntoChanges },
+    );
+
+    if diff_fields.fields.is_empty() {
+        return quote! {
+            impl #impl_gen #daft_crate::IntoChanges for #diff_name #ty_gen
+                #where_clause
+            {
+                type Changes = #changes_name #ty_gen;
+
+                fn into_changes(self) -> ::core::option::Option<Self::Changes> {
+                    ::core::option::Option::None
+                }
+            }
+        };
+    }
+
+    // One `__daft_<ident_or_index>` binding per field so the construction
+    // step below can name them positionally even for tuple structs.
+    let bindings: Vec<TokenStream> = diff_fields
+        .fields
+        .iter()
+        .enumerate()
+        .map(|(i, f)| {
+            let binding = binding_ident(f, i);
+            let access = match &f.ident {
+                Some(ident) => quote! { self.#ident },
+                None => {
+                    let idx: Index = i.into();
+                    quote! { self.#idx }
+                }
+            };
+            quote_spanned! {f.span()=>
+                let #binding = #daft_crate::IntoChanges::into_changes(#access);
+            }
+        })
+        .collect();
+
+    let binding_names: Vec<syn::Ident> = diff_fields
+        .fields
+        .iter()
+        .enumerate()
+        .map(|(i, f)| binding_ident(f, i))
+        .collect();
+
+    let constructor = match &s.fields {
+        Fields::Named(_) => {
+            let entries = diff_fields.fields.iter().zip(&binding_names).map(
+                |(f, binding)| {
+                    let name = f.ident.as_ref().unwrap();
+                    quote! { #name: #binding }
+                },
+            );
+            quote! { #changes_name { #(#entries),* } }
+        }
+        Fields::Unnamed(_) => {
+            quote! { #changes_name(#(#binding_names),*) }
+        }
+        Fields::Unit => unreachable!(
+            "Fields::Unit handled in the empty-fields branch above"
+        ),
+    };
+
+    quote! {
+        impl #impl_gen #daft_crate::IntoChanges for #diff_name #ty_gen
+            #where_clause
+        {
+            type Changes = #changes_name #ty_gen;
+
+            fn into_changes(self) -> ::core::option::Option<Self::Changes> {
+                #(#bindings)*
+                if #(#binding_names.is_some())||* {
+                    ::core::option::Option::Some(#constructor)
+                } else {
+                    ::core::option::Option::None
+                }
+            }
+        }
+    }
+}
+
+/// Build a `__daft_<member>` binding identifier. The prefix keeps tuple
+/// indices valid as idents and avoids colliding with user field names.
+fn binding_ident(f: &Field, index: usize) -> syn::Ident {
+    match &f.ident {
+        Some(ident) => {
+            syn::Ident::new(&format!("__daft_{ident}"), ident.span())
+        }
+        None => syn::Ident::new(&format!("__daft_{index}"), f.span()),
+    }
+}
+
+/// Implement `serde::Serialize` on the generated `*Changes` struct.
+///
+/// Hand-written instead of `#[derive(Serialize)]` because serde's
+/// auto-bound generator cannot follow projected associated types like
+/// `<<T as Diffable>::Diff<'__daft> as IntoChanges>::Changes`, and the
+/// derived impl fails to type-check. We pair an explicit where clause with
+/// per-field `if let Some(...)` so unchanged subtrees serialize to nothing.
+///
+/// This is never called for empty `*Changes` because `into_changes` on the
+/// corresponding `*Diff` returns `None` in that case — no value of the
+/// empty struct ever reaches `Serialize`.
+#[cfg(feature = "serde")]
+fn make_serialize_impl(
+    input: &DeriveInput,
+    diff_fields: &DiffFields,
+) -> TokenStream {
+    if diff_fields.fields.is_empty() {
+        return TokenStream::new();
+    }
+
+    let name = parse_str::<Path>(&format!("{}Changes", input.ident)).unwrap();
+    let daft_crate = daft_crate();
+    let daft_lt = daft_lifetime();
+    let new_generics = add_lifetime_to_generics(input, &daft_lt);
+    let (impl_gen, ty_gen, _) = &new_generics.split_for_impl();
+
+    let where_clause = diff_fields.changes_where_clause_with_trait_bound(
+        &parse_quote! { #daft_crate::__private_serde::Serialize },
+    );
+
+    let members: Vec<_> = diff_fields.fields.members().collect();
+    let is_tuple = matches!(&diff_fields.fields, Fields::Unnamed(_));
+
+    let count_expr = quote! {{
+        let mut __count = 0usize;
+        #( if self.#members.is_some() { __count += 1; } )*
+        __count
+    }};
+
+    let (begin, end_trait) = if is_tuple {
+        (
+            quote! {
+                #daft_crate::__private_serde::Serializer::serialize_tuple_struct(
+                    serializer, stringify!(#name), #count_expr,
+                )?
+            },
+            quote! { #daft_crate::__private_serde::ser::SerializeTupleStruct },
+        )
+    } else {
+        (
+            quote! {
+                #daft_crate::__private_serde::Serializer::serialize_struct(
+                    serializer, stringify!(#name), #count_expr,
+                )?
+            },
+            quote! { #daft_crate::__private_serde::ser::SerializeStruct },
+        )
+    };
+
+    let serialize_fields = members.iter().enumerate().map(|(i, member)| {
+        let call = if is_tuple {
+            quote! { #end_trait::serialize_field(&mut __state, __value)? }
+        } else {
+            // Named-field key matches the derived struct's field name.
+            let key = match member {
+                syn::Member::Named(id) => quote! { stringify!(#id) },
+                syn::Member::Unnamed(_) => {
+                    let s = i.to_string();
+                    quote! { #s }
+                }
+            };
+            quote! { #end_trait::serialize_field(&mut __state, #key, __value)? }
+        };
+        quote! {
+            if let ::core::option::Option::Some(__value) = &self.#member {
+                #call;
+            }
+        }
+    });
+
+    quote! {
+        #[automatically_derived]
+        impl #impl_gen #daft_crate::__private_serde::Serialize for #name #ty_gen
+            #where_clause
+        {
+            fn serialize<__DaftS>(
+                &self,
+                serializer: __DaftS,
+            ) -> ::core::result::Result<__DaftS::Ok, __DaftS::Error>
+            where
+                __DaftS: #daft_crate::__private_serde::Serializer,
+            {
+                let mut __state = #begin;
+                #( #serialize_fields )*
+                #end_trait::end(__state)
             }
         }
     }
@@ -652,6 +984,37 @@ impl DiffFields {
 
         where_clause
     }
+
+    /// Returns an iterator over the *changes*-projected field types — i.e.
+    /// `<DiffType as ::daft::IntoChanges>::Changes` for each field. Used by
+    /// the Changes-side struct definition and its inherent trait impls.
+    fn changes_types(&self) -> impl Iterator<Item = syn::Type> + '_ {
+        let daft_crate = daft_crate();
+        self.types().map(move |ty| -> syn::Type {
+            parse_quote_spanned! {ty.span()=>
+                <#ty as #daft_crate::IntoChanges>::Changes
+            }
+        })
+    }
+
+    /// Like [`Self::where_clause_with_trait_bound`], but each predicate is
+    /// applied to the corresponding changes-projected type rather than the
+    /// diff type itself.
+    fn changes_where_clause_with_trait_bound(
+        &self,
+        trait_bound: &syn::TraitBound,
+    ) -> WhereClause {
+        let predicates = self.changes_types().map(|ty| -> WherePredicate {
+            parse_quote_spanned! {ty.span()=>
+                #ty: #trait_bound
+            }
+        });
+
+        let mut where_clause = self.where_clause.clone();
+        where_clause.predicates.extend(predicates);
+
+        where_clause
+    }
 }
 
 impl ToTokens for DiffFields {
@@ -699,6 +1062,12 @@ fn generate_field_diffs(
 #[derive(Debug)]
 struct StructConfig {
     mode: StructMode,
+    /// `#[daft(changes)]`: opt in to emitting the `*Changes` struct, the
+    /// `IntoChanges` impl, and (with the `serde` feature) a `Serialize` impl
+    /// on the changes type. Off by default to keep the derive's contract
+    /// minimal — users with non-`Eq` fields or unbounded type parameters can
+    /// continue to derive `Diffable` without picking up extra constraints.
+    changes: bool,
 }
 
 impl StructConfig {
@@ -707,6 +1076,7 @@ impl StructConfig {
         errors: ErrorSink<'_, syn::Error>,
     ) -> Option<Self> {
         let mut mode = StructMode::Default;
+        let mut changes = false;
 
         for attr in attrs {
             {
@@ -723,10 +1093,17 @@ impl StructConfig {
                                 ));
                                 }
                             }
+                        } else if meta.path.is_ident("changes") {
+                            if changes {
+                                errors.push_warning(meta.error(
+                                    "#[daft(changes)] specified multiple times",
+                                ));
+                            }
+                            changes = true;
                         } else {
                             errors.push_critical(meta.error(
                                 "unknown attribute \
-                                 (supported attributes: leaf)",
+                                 (supported attributes: leaf, changes)",
                             ));
                         }
 
@@ -740,10 +1117,25 @@ impl StructConfig {
             }
         }
 
+        // `leaf` already makes the diff a `Leaf`, which has its own
+        // `IntoChanges` impl. Combining the two attributes is a user error.
+        if changes && matches!(mode, StructMode::Leaf) {
+            let span = attrs
+                .iter()
+                .find(|a| a.path().is_ident("daft"))
+                .map(|a| a.to_token_stream())
+                .unwrap_or_default();
+            errors.push_critical(syn::Error::new_spanned(
+                span,
+                "#[daft(changes)] is redundant on `#[daft(leaf)]` structs \
+                 (their `Leaf` diff already implements `IntoChanges`)",
+            ));
+        }
+
         if errors.has_critical_errors() {
             None
         } else {
-            Some(Self { mode })
+            Some(Self { mode, changes })
         }
     }
 }

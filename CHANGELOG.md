@@ -3,6 +3,12 @@
 <!-- next-header -->
 ## Unreleased - ReleaseDate
 
+### Added
+
+- New `IntoChanges` trait and a parallel `*Changes` type per diff, projecting a diff to the subset of nodes that actually changed. Built-in implementations cover `Leaf`, the map/set diffs, and tuples.
+- The `Diffable` derive macro now recognizes `#[daft(changes)]` on structs as opt-in to generating a parallel `FooChanges` type and an `IntoChanges` impl. Opting in is required because the projection needs `Eq` (and, with the new `serde` feature, `Serialize`) on every leaf type — constraints existing users may not satisfy.
+- New `serde` feature emits `Serialize` impls for `Leaf` and every `*Changes` type, so a projected diff can be written to JSON (or any other serde format) with unchanged subtrees omitted entirely.
+
 ## [0.1.6] - 2026-05-14
 
 ### Added

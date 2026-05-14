@@ -37,10 +37,18 @@ macro_rules! leaf_deref {
 
 /// Create a type `<MapType>Diff` and `impl Diffable` on it.
 ///
-/// This is supported for `BTreeMap` and `HashMap`
+/// This is supported for `BTreeMap` and `HashMap`. The `$is_empty:literal`
+/// argument is the qualified path to the map's `is_empty` method, used to
+/// drive `#[serde(skip_serializing_if = ...)]` on the changes type so
+/// empty `common`/`added`/`removed` maps drop out of the serialized form.
 #[cfg(feature = "alloc")]
 macro_rules! map_diff {
-    ($(#[$doc:meta])* $typ:ident, $key_constraint:ident) => {
+    (
+        $(#[$doc:meta])*
+        $typ:ident,
+        $key_constraint:ident,
+        $is_empty:literal $(,)?
+    ) => {
          paste::paste! {
             $(#[$doc])*
             #[derive(Debug, PartialEq, Eq)]
@@ -195,16 +203,69 @@ macro_rules! map_diff {
                     diff
                 }
             }
+
+            #[doc = "Changes-only projection of `" $typ "Diff`."]
+            ///
+            /// Returned by [`IntoChanges::into_changes`](crate::IntoChanges::into_changes).
+            /// `common` is filtered to entries whose values actually changed;
+            /// `added` and `removed` carry through from the diff unmodified.
+            #[derive(Debug, PartialEq, Eq)]
+            #[cfg_attr(feature = "serde", derive(::serde::Serialize))]
+            pub struct [<$typ Changes>]<'daft, K: $key_constraint + Eq, V> {
+                /// Entries present in both maps whose values differ between
+                /// `before` and `after`.
+                #[cfg_attr(feature = "serde", serde(skip_serializing_if = $is_empty))]
+                pub common: $typ<&'daft K, $crate::Leaf<&'daft V>>,
+
+                /// Entries present in the `after` map, but not in `before`.
+                #[cfg_attr(feature = "serde", serde(skip_serializing_if = $is_empty))]
+                pub added: $typ<&'daft K, &'daft V>,
+
+                /// Entries present in the `before` map, but not in `after`.
+                #[cfg_attr(feature = "serde", serde(skip_serializing_if = $is_empty))]
+                pub removed: $typ<&'daft K, &'daft V>,
+            }
+
+            impl<'daft, K: $key_constraint + Eq, V: Eq> $crate::IntoChanges
+                for [<$typ Diff>]<'daft, K, V>
+            {
+                type Changes = [<$typ Changes>]<'daft, K, V>;
+
+                fn into_changes(self) -> Option<Self::Changes> {
+                    let mut common = self.common;
+                    common.retain(|_, leaf| leaf.is_modified());
+                    if common.is_empty()
+                        && self.added.is_empty()
+                        && self.removed.is_empty()
+                    {
+                        None
+                    } else {
+                        Some([<$typ Changes>] {
+                            common,
+                            added: self.added,
+                            removed: self.removed,
+                        })
+                    }
+                }
+            }
         }
     }
 }
 
 /// Create a type `<SetType>Diff` and `impl Diffable` on it.
 ///
-/// This is supported for `BTreeSet` and `HashSet`.
+/// This is supported for `BTreeSet` and `HashSet`. The `$is_empty:literal`
+/// argument is the qualified path to the set's `is_empty` method, used to
+/// drive `#[serde(skip_serializing_if = ...)]` on the changes type so
+/// empty `added`/`removed` sets drop out of the serialized form.
 #[cfg(feature = "alloc")]
 macro_rules! set_diff {
-    ($(#[$doc:meta])* $typ:ident, $key_constraint:ident) => {
+    (
+        $(#[$doc:meta])*
+        $typ:ident,
+        $key_constraint:ident,
+        $is_empty:literal $(,)?
+    ) => {
         paste::paste! {
             $(#[$doc])*
             #[derive(Debug, PartialEq, Eq)]
@@ -249,6 +310,40 @@ macro_rules! set_diff {
                     diff.added = other.difference(self).collect();
                     diff.common = self.intersection(other).collect();
                     diff
+                }
+            }
+
+            #[doc = "Changes-only projection of `" $typ "Diff`."]
+            ///
+            /// Returned by [`IntoChanges::into_changes`](crate::IntoChanges::into_changes).
+            /// Set diffs have no notion of "modified" elements, so `common` is
+            /// omitted entirely — only the asymmetric difference is recorded.
+            #[derive(Debug, PartialEq, Eq)]
+            #[cfg_attr(feature = "serde", derive(::serde::Serialize))]
+            pub struct [<$typ Changes>]<'daft, K: $key_constraint + Eq> {
+                /// Entries present in the `after` set, but not in `before`.
+                #[cfg_attr(feature = "serde", serde(skip_serializing_if = $is_empty))]
+                pub added: $typ<&'daft K>,
+
+                /// Entries present in the `before` set, but not in `after`.
+                #[cfg_attr(feature = "serde", serde(skip_serializing_if = $is_empty))]
+                pub removed: $typ<&'daft K>,
+            }
+
+            impl<'daft, K: $key_constraint + Eq> $crate::IntoChanges
+                for [<$typ Diff>]<'daft, K>
+            {
+                type Changes = [<$typ Changes>]<'daft, K>;
+
+                fn into_changes(self) -> Option<Self::Changes> {
+                    if self.added.is_empty() && self.removed.is_empty() {
+                        None
+                    } else {
+                        Some([<$typ Changes>] {
+                            added: self.added,
+                            removed: self.removed,
+                        })
+                    }
                 }
             }
         }

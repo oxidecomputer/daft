@@ -1,0 +1,10 @@
+{
+  "inner": {
+    "before": {
+      "value": 1
+    },
+    "after": {
+      "value": 2
+    }
+  }
+}

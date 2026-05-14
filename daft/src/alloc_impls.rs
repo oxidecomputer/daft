@@ -109,7 +109,7 @@ map_diff!(
     /// assert_eq!(modified, [(&2, Leaf { before: &"dolor", after: &"sit" })]);
     /// # }
     /// ```
-    BTreeMap, Ord
+    BTreeMap, Ord, "::alloc::collections::BTreeMap::is_empty"
 );
 set_diff!(
     /// A diff of two [`BTreeSet`] instances.
@@ -141,7 +141,7 @@ set_diff!(
     /// assert_eq!(changes, expected);
     /// # }
     /// ```
-    BTreeSet, Ord
+    BTreeSet, Ord, "::alloc::collections::BTreeSet::is_empty"
 );
 
 /// Treat Vecs as Leafs

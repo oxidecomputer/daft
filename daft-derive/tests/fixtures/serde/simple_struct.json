@@ -1,0 +1,6 @@
+{
+  "retries": {
+    "before": 3,
+    "after": 5
+  }
+}

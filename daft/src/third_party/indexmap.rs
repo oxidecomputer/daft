@@ -2,8 +2,8 @@ use crate::Diffable;
 use core::hash::Hash;
 use indexmap::{IndexMap, IndexSet};
 
-map_diff!(IndexMap, Hash);
-set_diff!(IndexSet, Hash);
+map_diff!(IndexMap, Hash, "::indexmap::IndexMap::is_empty");
+set_diff!(IndexSet, Hash, "::indexmap::IndexSet::is_empty");
 
 #[cfg(test)]
 mod tests {

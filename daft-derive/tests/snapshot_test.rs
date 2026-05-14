@@ -20,6 +20,14 @@ fn daft_snapshot(
     path: &Utf8Path,
     input: String,
 ) -> datatest_stable::Result<()> {
+    // The `changes.rs` fixture exercises `#[daft(changes)]`, whose output
+    // includes a `Serialize` impl only when daft-derive's `serde` feature is
+    // on. The checked-in snapshot reflects that case, so we skip the
+    // fixture when serde is off rather than maintain a second snapshot.
+    if !cfg!(feature = "serde") && path.file_name() == Some("changes.rs") {
+        return Ok(());
+    }
+
     let data = syn::parse_str::<syn::File>(&input)?;
 
     let output = run_derive_macro(&data);

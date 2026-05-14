@@ -65,7 +65,7 @@ map_diff!(
     /// assert_eq!(modified, [(&2, Leaf { before: &"dolor", after: &"sit" })]);
     /// # }
     /// ```
-    HashMap, Hash
+    HashMap, Hash, "::std::collections::HashMap::is_empty"
 );
 set_diff!(
     /// A diff of two [`HashSet`] instances.
@@ -97,7 +97,7 @@ set_diff!(
     /// assert_eq!(changes, expected);
     /// # }
     /// ```
-    HashSet, Hash
+    HashSet, Hash, "::std::collections::HashSet::is_empty"
 );
 
 #[cfg(test)]

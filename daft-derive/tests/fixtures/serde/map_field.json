@@ -1,0 +1,16 @@
+{
+  "entries": {
+    "common": {
+      "2": {
+        "before": "beta",
+        "after": "BETA"
+      }
+    },
+    "added": {
+      "4": "delta"
+    },
+    "removed": {
+      "3": "gamma"
+    }
+  }
+}

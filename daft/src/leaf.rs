@@ -7,6 +7,7 @@ use core::ops::{Deref, DerefMut};
 ///
 /// For more information, see the [crate-level documentation](crate).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Leaf<T> {
     /// The value on the before side.
     pub before: T,
