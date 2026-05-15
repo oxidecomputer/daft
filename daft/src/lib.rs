@@ -524,3 +524,5 @@ pub use diffable::*;
 pub use leaf::*;
 #[cfg(feature = "std")]
 pub use std_impls::*;
+#[cfg(feature = "indexmap")]
+pub use third_party::indexmap::*;

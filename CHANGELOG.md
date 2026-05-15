@@ -3,6 +3,10 @@
 <!-- next-header -->
 ## Unreleased - ReleaseDate
 
+### Fixed
+
+- `IndexMapDiff` and `IndexSetDiff` are now re-exported at the crate root, matching the other map and set diff types, and have rustdoc examples.
+
 ## [0.1.6] - 2026-05-14
 
 ### Added

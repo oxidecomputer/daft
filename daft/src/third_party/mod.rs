@@ -1,7 +1,7 @@
 //! Implementations for third-party libraries.
 
 #[cfg(feature = "indexmap")]
-mod indexmap;
+pub(crate) mod indexmap;
 #[cfg(feature = "newtype-uuid1")]
 mod newtype_uuid_impls;
 #[cfg(feature = "oxnet01")]
