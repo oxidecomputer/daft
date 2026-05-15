@@ -3,6 +3,8 @@
 <!-- next-header -->
 ## Unreleased - ReleaseDate
 
+## [0.1.7] - 2026-05-15
+
 ### Fixed
 
 - `IndexMapDiff` and `IndexSetDiff` are now re-exported at the crate root, matching the other map and set diff types, and have rustdoc examples.
@@ -62,6 +64,7 @@ Initial release with support for:
 - Implementations for `oxnet`, `uuid`, and `newtype-uuid`
 
 <!-- next-url -->
+[0.1.7]: https://github.com/oxidecomputer/daft/releases/tag/daft-0.1.7
 [0.1.6]: https://github.com/oxidecomputer/daft/releases/tag/daft-0.1.6
 [0.1.5]: https://github.com/oxidecomputer/daft/releases/tag/daft-0.1.5
 [0.1.4]: https://github.com/oxidecomputer/daft/releases/tag/daft-0.1.4

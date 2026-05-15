@@ -149,7 +149,7 @@ dependencies = [
 
 [[package]]
 name = "daft"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "daft-derive",
  "indexmap",
@@ -161,7 +161,7 @@ dependencies = [
 
 [[package]]
 name = "daft-derive"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "daft",
  "datatest-stable",
