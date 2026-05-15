@@ -521,8 +521,8 @@ pub use alloc_impls::*;
 #[cfg(feature = "derive")]
 pub use daft_derive::Diffable;
 pub use diffable::*;
-#[cfg(feature = "indexmap")]
-pub use third_party::indexmap::*;
 pub use leaf::*;
 #[cfg(feature = "std")]
 pub use std_impls::*;
+#[cfg(feature = "indexmap")]
+pub use third_party::indexmap::*;
