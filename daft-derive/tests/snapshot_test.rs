@@ -1,6 +1,6 @@
 use datatest_stable::Utf8Path;
 use quote::ToTokens;
-use syn::{parse_quote, DeriveInput};
+use syn::{DeriveInput, parse_quote};
 
 // We need access to the proc-macro's internals for this test. An alternative
 // would be to make this a unit test, but the integration test harness gives us

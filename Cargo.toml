@@ -6,7 +6,7 @@ members = [
 ]
 
 [workspace.package]
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/oxidecomputer/daft"
 rust-version = "1.85.0"
 license = "MIT OR Apache-2.0"
