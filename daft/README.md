@@ -5,7 +5,7 @@
 ![License: MIT OR Apache-2.0](https://img.shields.io/crates/l/daft.svg?)
 [![crates.io](https://img.shields.io/crates/v/daft.svg?logo=rust)](https://crates.io/crates/daft)
 [![docs.rs](https://img.shields.io/docsrs/daft.svg?logo=docs.rs)](https://docs.rs/daft)
-[![Rust: ^1.81.0](https://img.shields.io/badge/rust-^1.81.0-93450a.svg?logo=rust)](https://doc.rust-lang.org/cargo/reference/manifest.html#the-rust-version-field)
+[![Rust: ^1.85.0](https://img.shields.io/badge/rust-^1.85.0-93450a.svg?logo=rust)](https://doc.rust-lang.org/cargo/reference/manifest.html#the-rust-version-field)
 <!-- cargo-sync-rdme ]] -->
 <!-- cargo-sync-rdme rustdoc [[ -->
 Daft is a library to perform semantic diffs of Rust data structures.
@@ -427,7 +427,7 @@ Implementations for third-party types, all **disabled** by default:
 
 ## Minimum supported Rust version (MSRV)
 
-The minimum supported Rust version is **1.81.0**. At any time, at least the
+The minimum supported Rust version is **1.85.0**. At any time, at least the
 last three stable versions of Rust are supported.
 
 While this crate is a pre-release (0.x.x) it may have its MSRV bumped in a
