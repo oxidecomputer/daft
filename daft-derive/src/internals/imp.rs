@@ -77,7 +77,7 @@ fn add_lifetime_to_generics(
     // Add the 'daft lifetime to the beginning of the parameter list -- the
     // exact order is not hugely important, but doing this makes tests simpler
     // (they can just check the first element).
-    new_generics.params.insert(0, GenericParam::from(daft_lt.clone()));
+    new_generics.params.insert(0, GenericParam::Lifetime(daft_lt.clone()));
     new_generics
 }
 
