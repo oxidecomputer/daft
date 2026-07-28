@@ -1,11 +1,11 @@
 use super::error_store::{ErrorSink, ErrorStore};
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{ToTokens, quote, quote_spanned};
 use syn::{
-    parse_quote, parse_quote_spanned, parse_str, spanned::Spanned,
-    visit::Visit, Attribute, Data, DataStruct, DeriveInput, Expr, Field,
-    Fields, GenericParam, Generics, Index, Lifetime, LifetimeParam, Path,
-    Token, WhereClause, WherePredicate,
+    Attribute, Data, DataStruct, DeriveInput, Expr, Field, Fields,
+    GenericParam, Generics, Index, Lifetime, LifetimeParam, Path, Token,
+    WhereClause, WherePredicate, parse_quote, parse_quote_spanned, parse_str,
+    spanned::Spanned, visit::Visit,
 };
 
 pub struct DeriveDiffableOutput {
@@ -740,11 +740,7 @@ impl StructConfig {
             }
         }
 
-        if errors.has_critical_errors() {
-            None
-        } else {
-            Some(Self { mode })
-        }
+        if errors.has_critical_errors() { None } else { Some(Self { mode }) }
     }
 }
 
@@ -823,11 +819,7 @@ impl FieldConfig {
             }
         }
 
-        if errors.has_critical_errors() {
-            None
-        } else {
-            Some(Self { mode })
-        }
+        if errors.has_critical_errors() { None } else { Some(Self { mode }) }
     }
 }
 
