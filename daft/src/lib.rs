@@ -447,7 +447,7 @@
 //!
 //! # Minimum supported Rust version (MSRV)
 //!
-//! The minimum supported Rust version is **1.81.0**. At any time, at least the
+//! The minimum supported Rust version is **1.85.0**. At any time, at least the
 //! last three stable versions of Rust are supported.
 //!
 //! While this crate is a pre-release (0.x.x) it may have its MSRV bumped in a

@@ -5,7 +5,7 @@
 ![License: MIT OR Apache-2.0](https://img.shields.io/crates/l/daft-derive.svg?)
 [![crates.io](https://img.shields.io/crates/v/daft-derive.svg?logo=rust)](https://crates.io/crates/daft-derive)
 [![docs.rs](https://img.shields.io/docsrs/daft-derive.svg?logo=docs.rs)](https://docs.rs/daft-derive)
-[![Rust: ^1.81.0](https://img.shields.io/badge/rust-^1.81.0-93450a.svg?logo=rust)](https://doc.rust-lang.org/cargo/reference/manifest.html#the-rust-version-field)
+[![Rust: ^1.85.0](https://img.shields.io/badge/rust-^1.85.0-93450a.svg?logo=rust)](https://doc.rust-lang.org/cargo/reference/manifest.html#the-rust-version-field)
 <!-- cargo-sync-rdme ]] -->
 <!-- cargo-sync-rdme rustdoc [[ -->
 Derive macro for daft (internal crate).

@@ -8,7 +8,7 @@ members = [
 [workspace.package]
 edition = "2021"
 repository = "https://github.com/oxidecomputer/daft"
-rust-version = "1.81.0"
+rust-version = "1.85.0"
 license = "MIT OR Apache-2.0"
 keywords = ["diff", "difference", "semantic-diff", "structural-diff"]
 
