@@ -627,6 +627,12 @@ impl DiffFields {
         // future.
         f.attrs = vec![];
 
+        // Drop default field values (Rust RFC 3681). The default is an
+        // expression of the original field type, so retaining it while
+        // rewriting `f.ty` would emit something like `a: <u32 as
+        // Diffable>::Diff<'__daft> = 5`, which is definitely wrong.
+        f.default = None;
+
         Some((f, config))
     }
 
