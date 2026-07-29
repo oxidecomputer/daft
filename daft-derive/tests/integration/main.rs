@@ -4,4 +4,5 @@
 //! test modules don't have to build a separate binary.
 
 mod basic;
+mod default_field_values;
 mod generics;
