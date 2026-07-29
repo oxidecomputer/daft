@@ -6,6 +6,7 @@
 ### Changed
 
 - Bumped MSRV to Rust 1.85.
+- Upgraded daft-derive's syn dependency to 3.0.
 
 ## [0.1.7] - 2026-05-15
 
