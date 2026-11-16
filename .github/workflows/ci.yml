@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUSTFLAGS: -D warnings
+      CARGO_BUILD_WARNINGS: deny
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
       - uses: dtolnay/rust-toolchain@stable
@@ -46,6 +47,7 @@ jobs:
       fail-fast: false
     env:
       RUSTFLAGS: -D warnings
+      CARGO_BUILD_WARNINGS: deny
       CARGO_TERM_COLOR: always
       CARGO_INCREMENTAL: 0
     steps:
@@ -69,11 +71,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        # 1.85 is the MSRV
-        rust-version: ["1.85"]
+        # 1.88 is the MSRV
+        rust-version: ["1.88"]
       fail-fast: false
     env:
       RUSTFLAGS: -D warnings
+      CARGO_BUILD_WARNINGS: deny
       # rust-toolchain.toml overrides the dtolnay/rust-toolchain selection --
       # set this environment variable, which overrides rust-toolchain.toml.
       RUSTUP_TOOLCHAIN: ${{ matrix.rust-version }}

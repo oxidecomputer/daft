@@ -18,7 +18,6 @@ daft-derive = { workspace = true, optional = true }
 indexmap = { workspace = true, optional = true }
 newtype-uuid = { workspace = true, optional = true }
 oxnet = { workspace = true, optional = true }
-paste.workspace = true
 uuid = { workspace = true, optional = true, features = ["v4"] }
 
 [features]

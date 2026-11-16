@@ -109,7 +109,9 @@ map_diff!(
     /// assert_eq!(modified, [(&2, Leaf { before: &"dolor", after: &"sit" })]);
     /// # }
     /// ```
-    BTreeMap, Ord
+    BTreeMap,
+    BTreeMapDiff,
+    Ord
 );
 set_diff!(
     /// A diff of two [`BTreeSet`] instances.
@@ -141,7 +143,9 @@ set_diff!(
     /// assert_eq!(changes, expected);
     /// # }
     /// ```
-    BTreeSet, Ord
+    BTreeSet,
+    BTreeSetDiff,
+    Ord
 );
 
 /// Treat Vecs as Leafs

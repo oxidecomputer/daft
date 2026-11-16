@@ -65,7 +65,9 @@ map_diff!(
     /// assert_eq!(modified, [(&2, Leaf { before: &"dolor", after: &"sit" })]);
     /// # }
     /// ```
-    HashMap, Hash
+    HashMap,
+    HashMapDiff,
+    Hash
 );
 set_diff!(
     /// A diff of two [`HashSet`] instances.
@@ -97,7 +99,9 @@ set_diff!(
     /// assert_eq!(changes, expected);
     /// # }
     /// ```
-    HashSet, Hash
+    HashSet,
+    HashSetDiff,
+    Hash
 );
 
 #[cfg(test)]
