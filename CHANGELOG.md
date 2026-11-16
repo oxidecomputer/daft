@@ -3,6 +3,11 @@
 <!-- next-header -->
 ## Unreleased - ReleaseDate
 
+### Changed
+
+- Bumped MSRV to Rust 1.88.
+- daft no longer depends on the `paste` crate.
+
 ## [0.1.8] - 2026-07-29
 
 ### Changed

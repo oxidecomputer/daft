@@ -56,7 +56,9 @@ map_diff!(
     /// assert_eq!(modified, [(&2, Leaf { before: &"dolor", after: &"sit" })]);
     /// # }
     /// ```
-    IndexMap, Hash
+    IndexMap,
+    IndexMapDiff,
+    Hash
 );
 set_diff!(
     /// A diff of two [`IndexSet`] instances.
@@ -90,7 +92,9 @@ set_diff!(
     /// assert_eq!(changes, expected);
     /// # }
     /// ```
-    IndexSet, Hash
+    IndexSet,
+    IndexSetDiff,
+    Hash
 );
 
 #[cfg(test)]
